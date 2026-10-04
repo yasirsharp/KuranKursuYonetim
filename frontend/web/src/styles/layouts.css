@@ -1,0 +1,383 @@
+/* ── Auth Layout Stilleri ──────────────────────────────────────────── */
+.auth-layout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  padding: 20px;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.auth-logo {
+  margin-bottom: 32px;
+}
+
+.auth-logo-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.auth-logo-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-green);
+  margin: 0 0 6px;
+}
+
+.auth-logo-subtitle {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.auth-content {
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+}
+
+/* ── Auth Form ─────────────────────────────────────────────────────── */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-form-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 4px;
+}
+
+.auth-form-hint {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 0 0 8px;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 2px;
+  outline: none;
+  transition: border-color 0.2s;
+  background: var(--color-bg);
+}
+
+.auth-input:focus {
+  border-color: var(--color-green);
+}
+
+.auth-input::placeholder {
+  letter-spacing: 0;
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.auth-button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.auth-button:active {
+  transform: scale(0.98);
+}
+
+.auth-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-button-primary {
+  background: linear-gradient(135deg, var(--color-green), var(--color-green-light));
+  box-shadow: 0 4px 14px rgba(27, 92, 58, 0.3);
+}
+
+.auth-error {
+  background: var(--color-red-pale);
+  color: var(--color-red);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auth-back-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-back-link:hover {
+  color: var(--color-green);
+}
+
+/* ── OTP Input ─────────────────────────────────────────────────────── */
+.otp-input-group {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.otp-input {
+  width: 48px;
+  height: 56px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s;
+  background: var(--color-bg);
+}
+
+.otp-input:focus {
+  border-color: var(--color-green);
+}
+
+/* ── Teacher Layout ────────────────────────────────────────────────── */
+.teacher-layout {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--color-bg);
+  position: relative;
+  overflow-x: hidden;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
+}
+
+.teacher-header {
+  background: var(--color-green);
+  padding: 13px 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.teacher-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.teacher-header-title span:first-child {
+  font-size: 20px;
+}
+
+.teacher-header-title span:last-child {
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.teacher-header-date {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9px;
+  padding: 4px 10px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.teacher-content {
+  overflow-y: auto;
+  height: calc(100vh - 104px); /* header + bottom nav */
+  padding: 14px 14px 0;
+}
+
+/* ── Bottom Navigation ─────────────────────────────────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  background: var(--color-card);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  z-index: 50;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px 6px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  gap: 2px;
+  transition: color 0.15s;
+  color: var(--color-muted);
+}
+
+.bottom-nav-item.active {
+  color: var(--color-green);
+}
+
+.bottom-nav-item-label {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ── Stat Cards ────────────────────────────────────────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  padding: 13px 12px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+}
+
+.stat-card-icon {
+  border-radius: 10px;
+  padding: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card-value {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.stat-card-label {
+  font-size: 10px;
+  color: var(--color-muted);
+  margin-top: 3px;
+}
+
+/* ── Student Cards ─────────────────────────────────────────────────── */
+.student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 100px;
+}
+
+.student-card {
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  transition: box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.student-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.student-avatar {
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+}
+
+.student-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.student-meta {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin: 2px 0 5px;
+}
+
+/* ── Progress Bar ──────────────────────────────────────────────────── */
+.progress-bar-track {
+  background: var(--color-border);
+  border-radius: 6px;
+  height: 5px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--color-green), var(--color-gold-light));
+  transition: width 0.4s ease;
+}
+
+/* ── Section Headers ───────────────────────────────────────────────── */
+.section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 8px;
+}
+
+/* ── Skeleton ──────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-border) 25%, #f0e8d8 50%, var(--color-border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -1,0 +1,53 @@
+using System.Linq.Expressions;
+using HafizTakip.Core.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace HafizTakip.Core.DataAccess.EntityFramework;
+
+public class EfEntityRepositoryBase<TEntity, TContext> : IEntityRepository<TEntity>
+    where TEntity : class, IEntity, new()
+    where TContext : DbContext
+{
+    protected readonly TContext Context;
+
+    public EfEntityRepositoryBase(TContext context)
+    {
+        Context = context;
+    }
+
+    public async Task<TEntity?> GetAsync(Expression<Func<TEntity, bool>> filter)
+    {
+        return await Context.Set<TEntity>().SingleOrDefaultAsync(filter);
+    }
+
+    public async Task<List<TEntity>> GetListAsync(Expression<Func<TEntity, bool>>? filter = null)
+    {
+        // TODO: Büyük koleksiyonlar için IQueryable tabanlı sıralama, projection ve DB seviyesinde sayfalama API'si ekle.
+        return filter == null
+            ? await Context.Set<TEntity>().ToListAsync()
+            : await Context.Set<TEntity>().Where(filter).ToListAsync();
+    }
+
+    public async Task AddAsync(TEntity entity)
+    {
+        var addedEntity = Context.Entry(entity);
+        addedEntity.State = EntityState.Added;
+        await Context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(TEntity entity)
+    {
+        var updatedEntity = Context.Entry(entity);
+        updatedEntity.State = EntityState.Modified;
+        await Context.SaveChangesAsync();
+    }
+
+    public async Task DeleteAsync(TEntity entity)
+    {
+        // NOT: Bizim yapımızda bu fiziksel silme (eğer IsDeleted mantığı yoksa)
+        // ITenantEntity ve BaseEntity'de soft-delete için Update çağrılır.
+        var deletedEntity = Context.Entry(entity);
+        deletedEntity.State = EntityState.Deleted;
+        await Context.SaveChangesAsync();
+    }
+}

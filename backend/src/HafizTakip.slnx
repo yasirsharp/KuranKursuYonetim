@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="HafizTakip.Business/HafizTakip.Business.csproj" />
+  <Project Path="HafizTakip.Core/HafizTakip.Core.csproj" />
+  <Project Path="HafizTakip.DataAccess/HafizTakip.DataAccess.csproj" />
+  <Project Path="HafizTakip.Entities/HafizTakip.Entities.csproj" />
+  <Project Path="HafizTakip.WebAPI/HafizTakip.WebAPI.csproj" />
+</Solution>

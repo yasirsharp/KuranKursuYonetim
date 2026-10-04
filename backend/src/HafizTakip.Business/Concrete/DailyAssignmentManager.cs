@@ -1,0 +1,226 @@
+using HafizTakip.Business.Abstract;
+using HafizTakip.Core.Utilities.Requests;
+using HafizTakip.Core.Utilities.Results;
+using HafizTakip.DataAccess.Abstract;
+using HafizTakip.Entities.Concrete;
+using HafizTakip.Entities.Dtos;
+using HafizTakip.Core.Utilities.IoC;
+using System.Text.Json;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+
+namespace HafizTakip.Business.Concrete;
+
+public class DailyAssignmentManager : IDailyAssignmentService
+{
+    private readonly IDailyAssignmentDal _dailyAssignmentDal;
+    private readonly IStudentDal _studentDal;
+    private readonly IUserDal _userDal;
+    private readonly ITenantContext _tenantContext;
+    private readonly IParentNotificationService _notificationService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public DailyAssignmentManager(
+        IDailyAssignmentDal dailyAssignmentDal, 
+        IStudentDal studentDal, 
+        IUserDal userDal, 
+        ITenantContext tenantContext,
+        IParentNotificationService notificationService,
+        IHttpContextAccessor httpContextAccessor)
+    {
+        _dailyAssignmentDal = dailyAssignmentDal;
+        _studentDal = studentDal;
+        _userDal = userDal;
+        _tenantContext = tenantContext;
+        _notificationService = notificationService;
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    private Guid GetCurrentUserId()
+    {
+        var userIdString = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdString, out Guid userId) ? userId : Guid.Empty;
+    }
+
+    public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetAllAsync(PaginationParams paginationParams)
+    {
+        var assignments = await _dailyAssignmentDal.GetListAsync();
+        return await CreatePagedResult(assignments, paginationParams);
+    }
+
+    public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
+    {
+        var assignments = await _dailyAssignmentDal.GetListAsync(a => a.StudentId == studentId);
+        return await CreatePagedResult(assignments, paginationParams);
+    }
+
+    public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetEtutAssignmentsAsync(DateTime date, PaginationParams paginationParams)
+    {
+        var assignments = await _dailyAssignmentDal.GetListAsync(a => a.AssignmentDate.Date == date.Date && a.IsBoarderToday && a.Status == "assigned");
+        return await CreatePagedResult(assignments, paginationParams);
+    }
+
+    public async Task<IDataResult<DailyAssignmentDto>> GetByIdAsync(Guid id)
+    {
+        var assignment = await _dailyAssignmentDal.GetAsync(a => a.Id == id);
+        if (assignment == null) return new ErrorDataResult<DailyAssignmentDto>("Görev bulunamadı.");
+
+        var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
+        var teacher = await _userDal.GetAsync(t => t.Id == assignment.TeacherId);
+
+        var dto = new DailyAssignmentDto
+        {
+            Id = assignment.Id,
+            TenantId = assignment.TenantId,
+            StudentId = assignment.StudentId,
+            StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
+            TeacherId = assignment.TeacherId,
+            TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
+            AssignmentDate = assignment.AssignmentDate,
+            IsBoarderToday = assignment.IsBoarderToday,
+            AssignedTasks = JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new(),
+            CompletedInEtut = JsonSerializer.Deserialize<List<string>>(assignment.CompletedInEtut) ?? new(),
+            CompletedAtHome = JsonSerializer.Deserialize<List<string>>(assignment.CompletedAtHome) ?? new(),
+            Status = assignment.Status,
+            EtutTeacherNote = assignment.EtutTeacherNote,
+            ParentNote = assignment.ParentNote
+        };
+
+        return new SuccessDataResult<DailyAssignmentDto>(dto);
+    }
+
+    public async Task<Core.Utilities.Results.IResult> AddAsync(CreateDailyAssignmentDto dto)
+    {
+        var student = await _studentDal.GetAsync(s => s.Id == dto.StudentId);
+        if (student == null) return new ErrorResult("Öğrenci bulunamadı.");
+
+        bool isBoarder = dto.OverrideIsBoarder ?? student.IsBoarder;
+        var teacherId = GetCurrentUserId();
+
+        var assignment = new DailyAssignment
+        {
+            TenantId = _tenantContext.TenantId,
+            StudentId = dto.StudentId,
+            TeacherId = teacherId,
+            AssignmentDate = dto.AssignmentDate,
+            IsBoarderToday = isBoarder,
+            AssignedTasks = JsonSerializer.Serialize(dto.AssignedTasks),
+            Status = isBoarder ? "assigned" : "sent_to_parent"
+        };
+
+        await _dailyAssignmentDal.AddAsync(assignment);
+
+        if (!isBoarder)
+        {
+            // Direkt eve gidiyorsa, veliye bildirim at.
+            await SendParentNotification(student, assignment);
+        }
+
+        return new SuccessResult("Görev başarıyla atandı.");
+    }
+
+    public async Task<Core.Utilities.Results.IResult> CompleteEtutAsync(CompleteEtutAssignmentDto dto)
+    {
+        var assignment = await _dailyAssignmentDal.GetAsync(a => a.Id == dto.Id);
+        if (assignment == null) return new ErrorResult("Görev bulunamadı.");
+        if (assignment.Status != "assigned") return new ErrorResult("Bu görev artık etüt hocasında değil.");
+
+        assignment.CompletedInEtut = JsonSerializer.Serialize(dto.CompletedTaskIds);
+        if (!string.IsNullOrEmpty(dto.EtutTeacherNote))
+            assignment.EtutTeacherNote = dto.EtutTeacherNote;
+
+        if (dto.FinishEtut)
+        {
+            // Kalanları kontrol et
+            var assignedTasks = JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new();
+            var uncompletedCount = assignedTasks.Count(t => !dto.CompletedTaskIds.Contains(t.Id));
+
+            if (uncompletedCount > 0)
+            {
+                assignment.Status = "sent_to_parent";
+                var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
+                if (student != null)
+                {
+                    await SendParentNotification(student, assignment);
+                }
+            }
+            else
+            {
+                assignment.Status = "completed";
+            }
+        }
+
+        assignment.UpdatedAt = DateTime.UtcNow;
+        await _dailyAssignmentDal.UpdateAsync(assignment);
+
+        return new SuccessResult("Etüt değerlendirmesi kaydedildi.");
+    }
+
+    public async Task<Core.Utilities.Results.IResult> CompleteHomeAsync(CompleteHomeAssignmentDto dto)
+    {
+        var assignment = await _dailyAssignmentDal.GetAsync(a => a.Id == dto.Id);
+        if (assignment == null) return new ErrorResult("Görev bulunamadı.");
+        if (assignment.Status != "sent_to_parent") return new ErrorResult("Bu görev şu an veli onayında değil.");
+
+        assignment.CompletedAtHome = JsonSerializer.Serialize(dto.CompletedTaskIds);
+        if (!string.IsNullOrEmpty(dto.ParentNote))
+            assignment.ParentNote = dto.ParentNote;
+
+        assignment.Status = "completed";
+        assignment.UpdatedAt = DateTime.UtcNow;
+
+        await _dailyAssignmentDal.UpdateAsync(assignment);
+        return new SuccessResult("Ev ödevi tamamlandı olarak işaretlendi.");
+    }
+
+    private async Task<IDataResult<PagedResult<DailyAssignmentDto>>> CreatePagedResult(IList<DailyAssignment> assignments, PaginationParams paginationParams)
+    {
+        var totalCount = assignments.Count;
+        var pagedList = assignments
+            .OrderByDescending(x => x.AssignmentDate)
+            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
+            .Take(paginationParams.PageSize)
+            .ToList();
+
+        var dtoList = new List<DailyAssignmentDto>();
+        foreach (var assignment in pagedList)
+        {
+            var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
+            var teacher = await _userDal.GetAsync(t => t.Id == assignment.TeacherId);
+
+            dtoList.Add(new DailyAssignmentDto
+            {
+                Id = assignment.Id,
+                TenantId = assignment.TenantId,
+                StudentId = assignment.StudentId,
+                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
+                TeacherId = assignment.TeacherId,
+                TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
+                AssignmentDate = assignment.AssignmentDate,
+                IsBoarderToday = assignment.IsBoarderToday,
+                AssignedTasks = JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new(),
+                CompletedInEtut = JsonSerializer.Deserialize<List<string>>(assignment.CompletedInEtut) ?? new(),
+                CompletedAtHome = JsonSerializer.Deserialize<List<string>>(assignment.CompletedAtHome) ?? new(),
+                Status = assignment.Status,
+                EtutTeacherNote = assignment.EtutTeacherNote,
+                ParentNote = assignment.ParentNote
+            });
+        }
+
+        var result = new PagedResult<DailyAssignmentDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        return new SuccessDataResult<PagedResult<DailyAssignmentDto>>(result, "Görevler listelendi.");
+    }
+
+    private async Task SendParentNotification(Student student, DailyAssignment assignment)
+    {
+        await _notificationService.AddAsync(new CreateParentNotificationDto
+        {
+            StudentId = student.Id,
+            NotificationType = "homework",
+            Title = "Yeni Ev Ödevi",
+            Message = $"{student.FirstName} {student.LastName} için yeni ev ödevi tanımlandı. Lütfen uygulamadan kontrol edip tamamlandığında işaretleyiniz.",
+            RecipientPhone = "905550000000", // İleride Parent tablosundan alınacak
+            DeliveryChannel = "in_app"
+        });
+    }
+}
