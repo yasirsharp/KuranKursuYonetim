@@ -1,6 +1,6 @@
 # 🗄️ Database Roadmap
 
-> **SQL Server / PostgreSQL · Entity Framework Core · Code-First**
+> **PostgreSQL · Entity Framework Core · SQL Script-First**
 > Hafız Takip projesinin veritabanı katmanı (DB) için geliştirme haritası ve işlem öncelikleri.
 
 ---

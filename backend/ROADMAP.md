@@ -72,4 +72,4 @@
 2. **N+1 Problemi:** LINQ sorgularında `Include` kullanımları optimize edilmeli.
 3. **DTO Kullanımı:** Entity nesneleri doğrudan API üzerinden dönülmemeli, araya DTO (Data Transfer Object) konulmalıdır.
 4. **Tenant Sistemi:** Multi-tenant SaaS yapısı nedeniyle her sorguda `tenant_id` kontrolü zorunludur.
-5. **API Design:** API tasarımı RESTful prensiplerine uygun olmalıdır. Türkiye'de bulunan sunucuların çoğunda PUT, DELETE gibi metotlar çalışmadığından, bu metotların GET veya POST ile kullanılması gerekmektedir. Bu durumun gerekçesi için araştırma yapınız. 
+5. **API Design:** API tasarımı RESTful prensiplerine uygundur; GET/POST/PUT/PATCH/DELETE kullanılır (bkz. `DEVELOPER_RULES.md` §4). Barındırma ortamı PUT/PATCH/DELETE isteklerini engellerse (bazı paylaşımlı IIS sunucularında WebDAV modülü nedeniyle görülür), istemci `POST` + `X-HTTP-Method-Override` header'ı gönderir ve backend'de `UseHttpMethodOverride` middleware'i açılır. Endpoint tasarımı bu nedenle değiştirilmez.

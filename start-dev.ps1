@@ -31,7 +31,7 @@ if (-not (Test-Path (Join-Path $frontendPath "node_modules"))) {
 }
 
 # -- 2. Backend'i yeni bir pencerede baslat --
-Write-Host "  [API] Backend baslatiliyor (http://localhost:5002)..." -ForegroundColor Cyan
+Write-Host "  [API] Backend baslatiliyor (http://localhost:5200)..." -ForegroundColor Cyan
 $backendProcess = Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
@@ -39,7 +39,7 @@ $backendProcess = Start-Process powershell -ArgumentList @(
 ) -PassThru
 
 # -- 3. Frontend'i yeni bir pencerede baslat --
-Write-Host "  [WEB] Frontend baslatiliyor (http://localhost:5173)..." -ForegroundColor Cyan
+Write-Host "  [WEB] Frontend baslatiliyor (http://localhost:7071)..." -ForegroundColor Cyan
 Start-Sleep -Seconds 2
 $frontendProcess = Start-Process powershell -ArgumentList @(
     "-NoExit",
@@ -50,10 +50,9 @@ $frontendProcess = Start-Process powershell -ArgumentList @(
 Write-Host ""
 Write-Host "  [OK] Her iki sunucu da baslatildi!" -ForegroundColor Green
 Write-Host ""
-# TODO: Aşağıdaki adresleri launchSettings.json ve frontend package.json içindeki portlarla eşleştir (API 5200, Vite 7071).
-Write-Host "  Backend  : http://localhost:5002" -ForegroundColor White
-Write-Host "  Swagger  : http://localhost:5002/swagger" -ForegroundColor White
-Write-Host "  Frontend : http://localhost:5173" -ForegroundColor White
+Write-Host "  Backend  : http://localhost:5200" -ForegroundColor White
+Write-Host "  Swagger  : http://localhost:5200/swagger" -ForegroundColor White
+Write-Host "  Frontend : http://localhost:7071" -ForegroundColor White
 Write-Host ""
 Write-Host "  Durdurmak icin acilan terminal pencerelerini kapatin." -ForegroundColor Yellow
 Write-Host ""

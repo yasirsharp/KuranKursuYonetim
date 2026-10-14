@@ -1,6 +1,6 @@
 # 🗄️ Database Developer Rules
 
-> **SQL Server / PostgreSQL · Entity Framework Core · Code-First**
+> **PostgreSQL · Entity Framework Core · SQL Script-First**
 > Bu dosya veritabanı tasarım ve yönetim kurallarını tanımlar. Tüm ekip üyeleri bu kuralları bilmelidir.
 
 ---
@@ -190,15 +190,15 @@ UNIQUE (tenant_id, email)                   → Tenant içinde unique email (use
 > EF Core Migration (`dotnet ef migrations add`) **KESİNLİKLE KULLANILMAYACAKTIR**.
 
 ### 6.1 Yeni Tablo veya Kolon Ekleme Akışı
-1. `database/` dizininde yeni bir SQL dosyası oluşturulur (örn: `09_yeni_tablo.sql`) veya varolan script güncellenir.
-2. Tablo/kolon değişiklikleri (CREATE/ALTER) bu script'e yazılır.
+1. `database/migrations/` altında numaralı yeni bir artımlı script açılır (örn: `003_schedule.sql`). Bu script mevcut veritabanlarını günceller (CREATE/ALTER, gerekiyorsa veri dönüşümü).
+2. Aynı değişiklik `00_full_schema.sql` dosyasına da işlenir; bu dosya her zaman şemanın **son halini** gösterir ve sıfırdan kurulumda kullanılır.
 3. Backend projesindeki ilgili C# Entity sınıfı (örn: `YeniTablo.cs`), SQL scriptiyle birebir eşleşecek şekilde güncellenir.
 4. Entity property isimleri PascalCase, veritabanı kolon isimleri snake_case olmalıdır (EF Core `UseSnakeCaseNamingConvention()` bunu otomatik eşleştirir).
 5. Tüm enum tipleri veritabanında `VARCHAR(50)` olarak tanımlanmalı, enum değer kısıtlamaları (validasyon) uygulama katmanında (C# tarafında) yapılmalıdır.
 
 ### 6.2 SQL Script Best Practices
-- Her yeni aşama için numaralandırılmış yeni bir SQL dosyası açın (`08_...`, `09_...`)
-- IF NOT EXISTS ve DROP TABLE IF EXISTS kullanımlarını göz ardı etmeyin.
+- Her değişiklik için `database/migrations/NNN_aciklama.sql` formatında yeni dosya açın; uygulanmış bir migration dosyası sonradan değiştirilmez.
+- Scriptler tekrar çalıştırılabilir olmalı: `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` / `DROP ... IF EXISTS` kullanın.
 - Tablolara her zaman `id`, `created_at`, `updated_at`, `is_deleted`, `deleted_at` alanlarını ekleyin.
 - Tenant tablolarına mutlaka `tenant_id` ekleyin.
 
@@ -262,7 +262,7 @@ foreach (var student in students)
 ## 8. Diğer Katmanları Tanıma
 
 ### 8.1 Backend
-- EF Core Code-First yaklaşımı — veritabanı şeması C# entity'lerinden üretilir
+- EF Core, SQL Script-First — şema `database/` scriptlerinden kurulur, C# entity'leri bu şemayı birebir yansıtır
 - Global Query Filter ile tenant izolasyonu otomatik
 - Soft delete filtresi otomatik uygulanır
 
