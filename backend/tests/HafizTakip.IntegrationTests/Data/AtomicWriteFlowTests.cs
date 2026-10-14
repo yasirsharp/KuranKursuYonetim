@@ -30,7 +30,7 @@ public class AtomicWriteFlowTests
             new EfLessonDal(context), new EfStudentDal(context), new EfUserDal(context),
             new TestTenantContext(TenantA), new PermissiveReferenceValidator(),
             new FixedCurrentUser(TeacherA, "head_teacher"), new UnrestrictedAccessScope(),
-            new EfUnitOfWork(context));
+            new EfUnitOfWork(context), new FakeQuranReference());
 
         // Hoca başka kursa ait: öğrenci ilerlemesi güncellenir ama ders insert'ü bileşik FK'ye takılır
         var act = () => manager.AddAsync(new CreateLessonDto

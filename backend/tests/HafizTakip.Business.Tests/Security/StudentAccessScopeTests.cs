@@ -75,7 +75,7 @@ public class StudentAccessScopeTests
         var manager = new LessonManager(lessonDal.Object, new Mock<IStudentDal>().Object, new Mock<IUserDal>().Object,
             new Mock<ITenantContext>().Object, new Mock<HafizTakip.Business.Abstract.ITenantReferenceValidator>().Object,
             _currentUser.Object, AccessScopes.Only(_ownChild),
-            UnitOfWorks.PassThrough().Object);
+            UnitOfWorks.PassThrough().Object, new HafizTakip.Business.Tests.Common.FakeQuranReference());
 
         var result = await manager.GetByStudentIdAsync(_otherChild, new PaginationParams());
 

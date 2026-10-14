@@ -49,6 +49,7 @@ public sealed class PostgresDatabaseFixture : IAsyncLifetime
         ConnectionString = builder.ConnectionString;
 
         await ExecuteScriptAsync(FindDatabaseFile("00_full_schema.sql"));
+        await ExecuteScriptAsync(FindDatabaseFile("02_quran_reference.sql"));
         await ExecuteSqlAsync(SeedSql);
     }
 

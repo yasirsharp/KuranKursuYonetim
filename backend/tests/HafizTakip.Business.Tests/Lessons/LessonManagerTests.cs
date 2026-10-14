@@ -43,7 +43,7 @@ public class LessonManagerTests
             _referencesMock.Object,
             _currentUserMock.Object,
             AccessScopes.Unrestricted(),
-            _unitOfWorkMock.Object);
+            _unitOfWorkMock.Object, new HafizTakip.Business.Tests.Common.FakeQuranReference());
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public class LessonManagerTests
         var lessonDal = new Mock<ILessonDal>();
         var manager = new LessonManager(lessonDal.Object, _studentDalMock.Object, _userDalMock.Object,
             _tenantContextMock.Object, _referencesMock.Object, _currentUserMock.Object,
-            AccessScopes.Only(ownChild), _unitOfWorkMock.Object);
+            AccessScopes.Only(ownChild), _unitOfWorkMock.Object, new HafizTakip.Business.Tests.Common.FakeQuranReference());
         var pagination = new PaginationParams();
         lessonDal
             .Setup(d => d.GetLessonDetailsPagedAsync(It.IsAny<LessonFilter>(), It.IsAny<IReadOnlyCollection<Guid>?>(), pagination))

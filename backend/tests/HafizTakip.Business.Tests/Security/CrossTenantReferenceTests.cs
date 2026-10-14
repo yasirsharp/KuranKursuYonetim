@@ -145,7 +145,7 @@ public class CrossTenantReferenceTests
         var manager = new LessonManager(lessonDal.Object, studentDal.Object, new Mock<IUserDal>().Object,
             _tenantContext.Object, _references.Object, _currentUser.Object,
             AccessScopes.Unrestricted(),
-            UnitOfWorks.PassThrough().Object);
+            UnitOfWorks.PassThrough().Object, new HafizTakip.Business.Tests.Common.FakeQuranReference());
         return (manager, lessonDal);
     }
 }

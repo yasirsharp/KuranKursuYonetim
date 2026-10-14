@@ -55,6 +55,8 @@ public class EfLessonDal : EfEntityRepositoryBase<Lesson, HafizTakipDbContext>, 
         from s in students.DefaultIfEmpty()
         join u in Context.Users on l.TeacherId equals u.Id into teachers
         from u in teachers.DefaultIfEmpty()
+        join q in Context.QuranSurahs on l.SuraId equals q.Id into surahs
+        from q in surahs.DefaultIfEmpty()
         select new LessonDto
         {
             Id = l.Id,
@@ -66,7 +68,7 @@ public class EfLessonDal : EfEntityRepositoryBase<Lesson, HafizTakipDbContext>, 
             LessonDate = l.LessonDate,
             CuzNo = l.JuzNumber,
             PageNo = l.PageNumber,
-            SurahName = l.SuraId.ToString(),
+            SurahName = q != null ? q.NameTr : string.Empty,
             IsNewPage = l.IsNewPage,
             Performance = l.Performance,
             HomeworkStatus = l.HomeworkStatus,

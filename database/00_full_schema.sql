@@ -425,3 +425,21 @@ SELECT pg_temp.add_constraint_if_missing('daily_assignments', 'fk_daily_assignme
     'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id) ON DELETE CASCADE');
 SELECT pg_temp.add_constraint_if_missing('refresh_tokens', 'fk_refresh_tokens_user',
     'FOREIGN KEY (tenant_id, user_id) REFERENCES users (tenant_id, id) ON DELETE CASCADE');
+
+-- =============================================================
+-- 5. KUR'AN REFERANS TABLOLARI (veri: 02_quran_reference.sql)
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS quran_surahs (
+    id INTEGER PRIMARY KEY CHECK (id BETWEEN 1 AND 114),
+    name_tr VARCHAR(50) NOT NULL,
+    ayah_count INTEGER NOT NULL CHECK (ayah_count > 0),
+    start_page INTEGER NOT NULL CHECK (start_page BETWEEN 1 AND 604)
+);
+
+CREATE TABLE IF NOT EXISTS quran_pages (
+    page INTEGER PRIMARY KEY CHECK (page BETWEEN 1 AND 604),
+    juz INTEGER NOT NULL CHECK (juz BETWEEN 1 AND 30),
+    first_surah_id INTEGER NOT NULL REFERENCES quran_surahs(id),
+    last_surah_id INTEGER NOT NULL REFERENCES quran_surahs(id)
+);

@@ -40,6 +40,10 @@ public class HafizTakipDbContext : DbContext
     public DbSet<StudentParent> StudentParents { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
 
+    // Kur'an referans verisi (platform seviyesi, salt okunur)
+    public DbSet<QuranSurah> QuranSurahs { get; set; }
+    public DbSet<QuranPage> QuranPages { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -60,6 +64,13 @@ public class HafizTakipDbContext : DbContext
                 : ApplySoftDeleteFilterMethod;
             method.MakeGenericMethod(clrType).Invoke(this, new object[] { modelBuilder });
         }
+
+        modelBuilder.Entity<QuranSurah>().Property(s => s.Id).ValueGeneratedNever();
+        modelBuilder.Entity<QuranPage>(b =>
+        {
+            b.HasKey(p => p.Page);
+            b.Property(p => p.Page).ValueGeneratedNever();
+        });
 
         // DailyAssignment görev listeleri veritabanında JSONB olarak tutulur
         modelBuilder.Entity<DailyAssignment>(b =>

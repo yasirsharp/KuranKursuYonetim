@@ -1,3 +1,4 @@
+using HafizTakip.Core.Constants;
 using HafizTakip.Core.Enums;
 using HafizTakip.Core.DataAccess;
 using System;
@@ -26,8 +27,9 @@ public class LessonManager : ILessonService
     private readonly ICurrentUser _currentUser;
     private readonly IStudentAccessScope _accessScope;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IQuranReferenceService _quran;
 
-    public LessonManager(ILessonDal lessonDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser, IStudentAccessScope accessScope, IUnitOfWork unitOfWork)
+    public LessonManager(ILessonDal lessonDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser, IStudentAccessScope accessScope, IUnitOfWork unitOfWork, IQuranReferenceService quran)
     {
         _lessonDal = lessonDal;
         _studentDal = studentDal;
@@ -37,6 +39,7 @@ public class LessonManager : ILessonService
         _references = references;
         _accessScope = accessScope;
         _unitOfWork = unitOfWork;
+        _quran = quran;
     }
 
     public async Task<IDataResult<PagedResult<LessonDto>>> GetAllAsync(LessonFilter filter, PaginationParams paginationParams)
@@ -89,16 +92,17 @@ public class LessonManager : ILessonService
         var teacherError = await _references.EnsureTeacherAsync(teacherId);
         if (teacherError != null) return teacherError;
 
+        var page = createLessonDto.PageNo!.Value; // validator sayfayı zorunlu ve 1-604 tutar
         var lesson = new Lesson
         {
             TenantId = _tenantContext.TenantId,
             StudentId = createLessonDto.StudentId,
             TeacherId = teacherId,
             LessonDate = lessonDateUtc,
-            JuzNumber = createLessonDto.CuzNo ?? 0,
-            PageNumber = createLessonDto.PageNo ?? 0,
-            // TODO: SurahName'i doğrulanmış sure kimliğine eşle; şu an gelen sure bilgisi kayboluyor.
-            SuraId = 0,
+            // Cüz ve sure istemciden alınmaz, sayfadan türetilir (ayetberkenar mushaf)
+            JuzNumber = QuranConstants.JuzOfPage(page),
+            PageNumber = page,
+            SuraId = await _quran.GetFirstSurahIdOfPageAsync(page) ?? 0,
             IsNewPage = createLessonDto.IsNewPage,
             Performance = createLessonDto.Performance,
             HomeworkStatus = createLessonDto.HomeworkStatus,
@@ -135,9 +139,12 @@ public class LessonManager : ILessonService
         var lesson = await _lessonDal.GetAsync(x => x.Id == updateLessonDto.Id);
         if (lesson == null) return new ErrorResult("Ders bulunamadı.");
 
-        lesson.JuzNumber = updateLessonDto.CuzNo ?? lesson.JuzNumber;
-        lesson.PageNumber = updateLessonDto.PageNo ?? lesson.PageNumber;
-        lesson.SuraId = 0; // updateLessonDto.SurahName varsa int parse edilebilir
+        if (updateLessonDto.PageNo is { } newPage)
+        {
+            lesson.PageNumber = newPage;
+            lesson.JuzNumber = QuranConstants.JuzOfPage(newPage);
+            lesson.SuraId = await _quran.GetFirstSurahIdOfPageAsync(newPage) ?? 0;
+        }
         lesson.Performance = updateLessonDto.Performance;
         lesson.HomeworkStatus = updateLessonDto.HomeworkStatus;
         lesson.Notes = updateLessonDto.TeacherNotes;
