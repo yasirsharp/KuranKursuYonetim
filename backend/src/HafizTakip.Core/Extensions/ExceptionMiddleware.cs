@@ -1,17 +1,29 @@
-using System.ComponentModel.DataAnnotations;
-using FluentValidation.Results;
+using System.Security.Authentication;
+using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace HafizTakip.Core.Extensions;
 
+/// <summary>
+/// Yakalanmamış tüm hataları standart { success, message, statusCode } JSON yanıtına çevirir.
+/// Beklenmeyen hataların ayrıntısı yalnızca loglanır; üretimde istemciye sızdırılmaz.
+/// </summary>
 public class ExceptionMiddleware
 {
-    private readonly RequestDelegate _next;
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public ExceptionMiddleware(RequestDelegate next)
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionMiddleware> _logger;
+    private readonly IWebHostEnvironment _environment;
+
+    public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IWebHostEnvironment environment)
     {
         _next = next;
+        _logger = logger;
+        _environment = environment;
     }
 
     public async Task InvokeAsync(HttpContext httpContext)
@@ -28,54 +40,65 @@ public class ExceptionMiddleware
 
     private Task HandleExceptionAsync(HttpContext httpContext, Exception e)
     {
+        ErrorDetails details;
+
+        switch (e)
+        {
+            case FluentValidation.ValidationException validationException:
+                details = new ValidationErrorDetails
+                {
+                    StatusCode = StatusCodes.Status400BadRequest,
+                    Message = "Doğrulama hatası.",
+                    Errors = validationException.Errors
+                        .Select(f => new ValidationErrorItem(f.PropertyName, f.ErrorMessage))
+                        .ToList()
+                };
+                break;
+
+            case AuthenticationException:
+                details = new ErrorDetails
+                {
+                    StatusCode = StatusCodes.Status401Unauthorized,
+                    Message = "Kimlik doğrulama başarısız."
+                };
+                break;
+
+            case UnauthorizedAccessException:
+                details = new ErrorDetails
+                {
+                    StatusCode = StatusCodes.Status403Forbidden,
+                    Message = "Bu işlem için yetkiniz yok."
+                };
+                break;
+
+            default:
+                _logger.LogError(e, "İşlenmeyen hata: {Method} {Path}", httpContext.Request.Method, httpContext.Request.Path);
+                details = new ErrorDetails
+                {
+                    StatusCode = StatusCodes.Status500InternalServerError,
+                    Message = _environment.IsDevelopment()
+                        ? $"Beklenmeyen bir hata oluştu. Detay: {e.Message}"
+                        : "Beklenmeyen bir hata oluştu."
+                };
+                break;
+        }
+
         httpContext.Response.ContentType = "application/json";
-        httpContext.Response.StatusCode = (int)System.Net.HttpStatusCode.InternalServerError;
-
-        string message = "Internal Server Error";
-        IEnumerable<ValidationFailure>? errors = null;
-
-        if (e.GetType() == typeof(FluentValidation.ValidationException))
-        {
-            var validationException = (FluentValidation.ValidationException)e;
-            message = "Doğrulama hatası.";
-            errors = validationException.Errors;
-            httpContext.Response.StatusCode = (int)System.Net.HttpStatusCode.BadRequest;
-            
-            return httpContext.Response.WriteAsync(new ValidationErrorDetails
-            {
-                StatusCode = httpContext.Response.StatusCode,
-                Message = message,
-                Errors = errors
-            }.ToString());
-        }
-
-        if (e.GetType() == typeof(UnauthorizedAccessException))
-        {
-            message = "Yetkisiz erişim.";
-            httpContext.Response.StatusCode = (int)System.Net.HttpStatusCode.Unauthorized;
-        }
-
-        // TODO: Üretim yanıtında e.Message döndürme; ayrıntıları yalnızca sunucu tarafındaki güvenli loglara yaz.
-        return httpContext.Response.WriteAsync(new ErrorDetails
-        {
-            StatusCode = httpContext.Response.StatusCode,
-            Message = message + " Detay: " + e.Message
-        }.ToString());
+        httpContext.Response.StatusCode = details.StatusCode;
+        return httpContext.Response.WriteAsync(JsonSerializer.Serialize(details, details.GetType(), JsonOptions));
     }
 }
 
 public class ErrorDetails
 {
+    public bool Success { get; set; } = false;
     public string Message { get; set; } = string.Empty;
     public int StatusCode { get; set; }
-
-    public override string ToString()
-    {
-        return System.Text.Json.JsonSerializer.Serialize(this);
-    }
 }
 
 public class ValidationErrorDetails : ErrorDetails
 {
-    public IEnumerable<ValidationFailure>? Errors { get; set; }
+    public List<ValidationErrorItem> Errors { get; set; } = new();
 }
+
+public record ValidationErrorItem(string PropertyName, string ErrorMessage);

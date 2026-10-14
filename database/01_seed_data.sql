@@ -23,19 +23,19 @@ VALUES ('44444444-1111-1111-1111-111111111111', '11111111-1111-1111-1111-1111111
 -- 4. KULLANICILAR (Öğretmenler ve Veliler)
 -- Hoca 1 (Başöğretmen)
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
-VALUES ('55555555-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'Ahmet', 'Yılmaz', '05001112233', 'ahmet.hoca@merkezkurs.com', 'head_teacher', 'hashed_pw');
+VALUES ('55555555-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'Ahmet', 'Yılmaz', '5001112233', 'ahmet.hoca@merkezkurs.com', 'head_teacher', 'hashed_pw');
 
 -- Hoca 2 (Yardımcı Öğretmen)
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
-VALUES ('55555555-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'Mehmet', 'Kaya', '05001112234', 'mehmet.hoca@merkezkurs.com', 'assistant_teacher', 'hashed_pw');
+VALUES ('55555555-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'Mehmet', 'Kaya', '5001112234', 'mehmet.hoca@merkezkurs.com', 'assistant_teacher', 'hashed_pw');
 
 -- Veli 1
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
-VALUES ('55555555-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Hasan', 'Demir', '05001112235', 'hasan.veli@mail.com', 'parent', 'hashed_pw');
+VALUES ('55555555-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Hasan', 'Demir', '5001112235', 'hasan.veli@mail.com', 'parent', 'hashed_pw');
 
 -- Veli 2
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
-VALUES ('55555555-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111', 'Ayşe', 'Çelik', '05001112236', 'ayse.veli@mail.com', 'parent', 'hashed_pw');
+VALUES ('55555555-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111', 'Ayşe', 'Çelik', '5001112236', 'ayse.veli@mail.com', 'parent', 'hashed_pw');
 
 -- 5. GRUPLAR (Sınıflar)
 INSERT INTO groups (id, tenant_id, teacher_id, name, description)

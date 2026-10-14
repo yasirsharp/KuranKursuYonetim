@@ -15,5 +15,9 @@ public class CoreModule : ICoreModule
         
         // TenantContext scoped olmalı ki her request'te kendi tenant_id'sini tutsun
         serviceCollection.AddScoped<ITenantContext, TenantContext>();
+
+        // İsteği yapan kullanıcı (JWT claim'leri) — HttpContext üzerinden okunur
+        serviceCollection.AddHttpContextAccessor();
+        serviceCollection.AddScoped<ICurrentUser, CurrentUser>();
     }
 }

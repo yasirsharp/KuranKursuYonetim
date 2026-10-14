@@ -6,8 +6,6 @@ using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
 using HafizTakip.Core.Utilities.IoC;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace HafizTakip.Business.Concrete;
 
@@ -18,7 +16,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
     private readonly IUserDal _userDal;
     private readonly ITenantContext _tenantContext;
     private readonly IParentNotificationService _notificationService;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ICurrentUser _currentUser;
 
     public DailyAssignmentManager(
         IDailyAssignmentDal dailyAssignmentDal, 
@@ -26,21 +24,17 @@ public class DailyAssignmentManager : IDailyAssignmentService
         IUserDal userDal, 
         ITenantContext tenantContext,
         IParentNotificationService notificationService,
-        IHttpContextAccessor httpContextAccessor)
+        ICurrentUser currentUser)
     {
         _dailyAssignmentDal = dailyAssignmentDal;
         _studentDal = studentDal;
         _userDal = userDal;
         _tenantContext = tenantContext;
         _notificationService = notificationService;
-        _httpContextAccessor = httpContextAccessor;
+        _currentUser = currentUser;
     }
 
-    private Guid GetCurrentUserId()
-    {
-        var userIdString = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.TryParse(userIdString, out Guid userId) ? userId : Guid.Empty;
-    }
+    private Guid GetCurrentUserId() => _currentUser.UserId ?? Guid.Empty;
 
     public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetAllAsync(PaginationParams paginationParams)
     {

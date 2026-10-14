@@ -8,7 +8,6 @@ using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
-using Microsoft.AspNetCore.Http;
 
 namespace HafizTakip.Business.Tests.DailyAssignments;
 
@@ -19,7 +18,7 @@ public class DailyAssignmentManagerTests
     private readonly Mock<IUserDal> _userDalMock;
     private readonly Mock<ITenantContext> _tenantContextMock;
     private readonly Mock<IParentNotificationService> _notificationServiceMock;
-    private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
+    private readonly Mock<ICurrentUser> _currentUserMock;
     private readonly DailyAssignmentManager _manager;
     private readonly Guid _testTenantId;
 
@@ -30,7 +29,7 @@ public class DailyAssignmentManagerTests
         _userDalMock = new Mock<IUserDal>();
         _tenantContextMock = new Mock<ITenantContext>();
         _notificationServiceMock = new Mock<IParentNotificationService>();
-        _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
+        _currentUserMock = new Mock<ICurrentUser>();
         _testTenantId = Guid.NewGuid();
 
         _tenantContextMock.SetupGet(t => t.TenantId).Returns(_testTenantId);
@@ -41,7 +40,7 @@ public class DailyAssignmentManagerTests
             _userDalMock.Object,
             _tenantContextMock.Object,
             _notificationServiceMock.Object,
-            _httpContextAccessorMock.Object);
+            _currentUserMock.Object);
     }
 
     [Fact]

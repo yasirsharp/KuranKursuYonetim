@@ -1,4 +1,4 @@
-﻿using HafizTakip.Business.Abstract;
+using HafizTakip.Business.Abstract;
 using HafizTakip.Entities.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,7 @@ namespace HafizTakip.WebAPI.Controllers;
 [ApiController]
 // TODO: Kullanıcı listesindeki telefon/e-posta verileri için okuma rollerini daralt.
 [Authorize] // Herkes görebilir ancak sadece kendi tenant'ındaki hocaları
-public class UsersController : ControllerBase
+public class UsersController : ApiControllerBase
 {
     private readonly IUserService _userService;
 
@@ -22,16 +22,14 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> GetAll([FromQuery] HafizTakip.Core.Utilities.Requests.PaginationParams paginationParams)
     {
         var result = await _userService.GetAllAsync(paginationParams);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _userService.GetByIdAsync(id);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpPost]
@@ -39,8 +37,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Add(CreateUserDto createUserDto)
     {
         var result = await _userService.AddAsync(createUserDto);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
@@ -50,8 +47,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Update(UpdateUserDto updateUserDto)
     {
         var result = await _userService.UpdateAsync(updateUserDto);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
@@ -61,8 +57,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await _userService.DeleteAsync(id);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 }
 
