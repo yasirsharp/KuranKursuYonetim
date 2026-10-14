@@ -13,12 +13,14 @@ public class ParentNotificationManager : IParentNotificationService
     private readonly IParentNotificationDal _parentNotificationDal;
     private readonly IStudentDal _studentDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ITenantReferenceValidator _references;
 
-    public ParentNotificationManager(IParentNotificationDal parentNotificationDal, IStudentDal studentDal, ITenantContext tenantContext)
+    public ParentNotificationManager(IParentNotificationDal parentNotificationDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references)
     {
         _parentNotificationDal = parentNotificationDal;
         _studentDal = studentDal;
         _tenantContext = tenantContext;
+        _references = references;
     }
 
     public async Task<IDataResult<PagedResult<ParentNotificationDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -120,6 +122,9 @@ public class ParentNotificationManager : IParentNotificationService
 
     public async Task<IResult> AddAsync(CreateParentNotificationDto createParentNotificationDto)
     {
+        var referenceError = await _references.EnsureStudentAsync(createParentNotificationDto.StudentId);
+        if (referenceError != null) return referenceError;
+
         var notification = new ParentNotification
         {
             TenantId = _tenantContext.TenantId,

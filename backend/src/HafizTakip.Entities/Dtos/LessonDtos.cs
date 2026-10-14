@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace HafizTakip.Entities.Dtos;
 
@@ -27,7 +27,8 @@ public class LessonDto
 public class CreateLessonDto
 {
     public Guid StudentId { get; set; }
-    public Guid TeacherId { get; set; }
+    /// <summary>Boşsa dersi kaydeden kullanıcı hoca olarak yazılır.</summary>
+    public Guid? TeacherId { get; set; }
     public DateTime LessonDate { get; set; }
     
     public int? CuzNo { get; set; }

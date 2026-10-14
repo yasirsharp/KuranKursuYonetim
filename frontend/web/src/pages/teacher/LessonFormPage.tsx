@@ -5,7 +5,6 @@ import { createLesson } from '../../api/lessons';
 import { Logger } from '../../services/logger';
 import { Icon } from '../../components/ui/Icon';
 import type { IStudent } from '../../types/student';
-import { useAuth } from '../../context/AuthContext';
 
 const log = Logger.create('LessonFormPage');
 
@@ -13,7 +12,6 @@ type LessonType = 'sabak' | 'sabki' | 'manzil';
 
 export default function LessonFormPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   
   const [students, setStudents] = useState<IStudent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +61,6 @@ export default function LessonFormPage() {
       
       await createLesson({
         studentId,
-        teacherId: user?.tenantId || '', // Normalde auth user id gelir
         lessonDate: new Date().toISOString(),
         cuzNo: parseInt(cuzNo, 10),
         pageNo: parseInt(pageNo, 10),

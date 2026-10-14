@@ -15,12 +15,14 @@ public class StudentManager : IStudentService
     private readonly IStudentDal _studentDal;
     private readonly IGroupDal _groupDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ITenantReferenceValidator _references;
 
-    public StudentManager(IStudentDal studentDal, IGroupDal groupDal, ITenantContext tenantContext)
+    public StudentManager(IStudentDal studentDal, IGroupDal groupDal, ITenantContext tenantContext, ITenantReferenceValidator references)
     {
         _studentDal = studentDal;
         _groupDal = groupDal;
         _tenantContext = tenantContext;
+        _references = references;
     }
 
     public async Task<IDataResult<PagedResult<StudentDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -125,7 +127,12 @@ public class StudentManager : IStudentService
         var student = await _studentDal.GetAsync(x => x.Id == updateStudentDto.Id);
         if (student == null) return new ErrorResult("Öğrenci bulunamadı.");
 
-        // TODO: Atanan grubun mevcut tenant'a ait olduğunu doğrula; tenant dışı GroupId ilişkisini kabul etme.
+        if (updateStudentDto.GroupId is { } groupId && groupId != student.GroupId)
+        {
+            var referenceError = await _references.EnsureGroupAsync(groupId);
+            if (referenceError != null) return referenceError;
+        }
+
         student.GroupId = updateStudentDto.GroupId;
         student.FirstName = updateStudentDto.FirstName;
         student.LastName = updateStudentDto.LastName;

@@ -19,7 +19,8 @@ public class EtutNoteDto : IDto
 public class CreateEtutNoteDto : IDto
 {
     public Guid StudentId { get; set; }
-    public Guid TeacherId { get; set; }
+    /// <summary>Boşsa notu bırakan kullanıcı hoca olarak yazılır.</summary>
+    public Guid? TeacherId { get; set; }
     public DateTime NoteDate { get; set; }
     public string HomeworkStatus { get; set; } = string.Empty;
     public string? TeacherNotes { get; set; }

@@ -13,13 +13,15 @@ public class StudentParentManager : IStudentParentService
     private readonly IStudentDal _studentDal;
     private readonly IUserDal _userDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ITenantReferenceValidator _references;
 
-    public StudentParentManager(IStudentParentDal studentParentDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext)
+    public StudentParentManager(IStudentParentDal studentParentDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references)
     {
         _studentParentDal = studentParentDal;
         _studentDal = studentDal;
         _userDal = userDal;
         _tenantContext = tenantContext;
+        _references = references;
     }
 
     public async Task<IDataResult<List<StudentParentDto>>> GetParentsByStudentIdAsync(Guid studentId)
@@ -70,9 +72,12 @@ public class StudentParentManager : IStudentParentService
 
     public async Task<IResult> AddAsync(CreateStudentParentDto dto)
     {
-        // TODO: Öğrenci ve veli kayıtlarının mevcut tenant'a ait olduğunu doğrula; iki kimlik şu an doğrudan ilişkiye yazılıyor.
+        var referenceError = await _references.EnsureStudentAsync(dto.StudentId)
+                             ?? await _references.EnsureParentAsync(dto.ParentId);
+        if (referenceError != null) return referenceError;
+
         var exists = await _studentParentDal.GetAsync(sp => sp.StudentId == dto.StudentId && sp.ParentId == dto.ParentId);
-        if (exists != null) return new ErrorResult("Bu eşleşme zaten mevcut.");
+        if (exists != null) return new ErrorResult("Bu eşleşme zaten mevcut.", ResultErrorType.Conflict);
 
         var studentParent = new StudentParent
         {

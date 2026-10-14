@@ -14,13 +14,15 @@ public class ExamResultManager : IExamResultService
     private readonly IExamDal _examDal;
     private readonly IStudentDal _studentDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ITenantReferenceValidator _references;
 
-    public ExamResultManager(IExamResultDal examResultDal, IExamDal examDal, IStudentDal studentDal, ITenantContext tenantContext)
+    public ExamResultManager(IExamResultDal examResultDal, IExamDal examDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references)
     {
         _examResultDal = examResultDal;
         _examDal = examDal;
         _studentDal = studentDal;
         _tenantContext = tenantContext;
+        _references = references;
     }
 
     public async Task<IDataResult<PagedResult<ExamResultDto>>> GetByExamIdAsync(Guid examId, PaginationParams paginationParams)
@@ -122,8 +124,12 @@ public class ExamResultManager : IExamResultService
 
     public async Task<IResult> AddAsync(CreateExamResultDto createExamResultDto)
     {
+        var referenceError = await _references.EnsureExamAsync(createExamResultDto.ExamId)
+                             ?? await _references.EnsureStudentAsync(createExamResultDto.StudentId);
+        if (referenceError != null) return referenceError;
+
         var exists = await _examResultDal.GetAsync(r => r.ExamId == createExamResultDto.ExamId && r.StudentId == createExamResultDto.StudentId);
-        if (exists != null) return new ErrorResult("Bu öğrenci için bu sınava ait sonuç zaten girilmiş.");
+        if (exists != null) return new ErrorResult("Bu öğrenci için bu sınava ait sonuç zaten girilmiş.", ResultErrorType.Conflict);
 
         var result = new ExamResult
         {

@@ -14,13 +14,17 @@ public class EtutNoteManager : IEtutNoteService
     private readonly IStudentDal _studentDal;
     private readonly IUserDal _userDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ITenantReferenceValidator _references;
+    private readonly ICurrentUser _currentUser;
 
-    public EtutNoteManager(IEtutNoteDal etutNoteDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext)
+    public EtutNoteManager(IEtutNoteDal etutNoteDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser)
     {
         _etutNoteDal = etutNoteDal;
         _studentDal = studentDal;
         _userDal = userDal;
         _tenantContext = tenantContext;
+        _currentUser = currentUser;
+        _references = references;
     }
 
     public async Task<IDataResult<PagedResult<EtutNoteDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -122,13 +126,20 @@ public class EtutNoteManager : IEtutNoteService
     public async Task<IResult> AddAsync(CreateEtutNoteDto createEtutNoteDto)
     {
         var student = await _studentDal.GetAsync(s => s.Id == createEtutNoteDto.StudentId);
-        if (student == null) return new ErrorResult("Öğrenci bulunamadı.");
+        if (student == null) return new ErrorResult("Öğrenci bulunamadı.", ResultErrorType.NotFound);
+
+        // Hoca belirtilmediyse notu bırakan kullanıcıdır; belirtildiyse bu kursun hocası olmalıdır
+        var teacherId = createEtutNoteDto.TeacherId is { } requestedTeacherId && requestedTeacherId != Guid.Empty
+            ? requestedTeacherId
+            : _currentUser.UserId ?? Guid.Empty;
+        var teacherError = await _references.EnsureTeacherAsync(teacherId);
+        if (teacherError != null) return teacherError;
 
         var note = new EtutNote
         {
             TenantId = _tenantContext.TenantId,
             StudentId = createEtutNoteDto.StudentId,
-            TeacherId = createEtutNoteDto.TeacherId,
+            TeacherId = teacherId,
             NoteDate = createEtutNoteDto.NoteDate.Date,
             HomeworkStatus = createEtutNoteDto.HomeworkStatus,
             TeacherNotes = createEtutNoteDto.TeacherNotes

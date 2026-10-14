@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using HafizTakip.Business.Abstract;
 using HafizTakip.Business.Concrete;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Requests;
@@ -10,6 +11,7 @@ namespace HafizTakip.Business.Tests.Attendance;
 
 public class AttendanceManagerTests
 {
+    private readonly Mock<ITenantReferenceValidator> _referencesMock = new();
     private readonly Mock<IAttendanceDal> _attendanceDalMock;
     private readonly Mock<IStudentDal> _studentDalMock;
     private readonly Mock<ITenantContext> _tenantContextMock;
@@ -29,7 +31,8 @@ public class AttendanceManagerTests
         _attendanceManager = new AttendanceManager(
             _attendanceDalMock.Object,
             _studentDalMock.Object,
-            _tenantContextMock.Object);
+            _tenantContextMock.Object,
+            _referencesMock.Object);
     }
 
     [Fact]

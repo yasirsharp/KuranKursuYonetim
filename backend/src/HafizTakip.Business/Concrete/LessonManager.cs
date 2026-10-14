@@ -20,13 +20,17 @@ public class LessonManager : ILessonService
     private readonly IStudentDal _studentDal;
     private readonly IUserDal _userDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ITenantReferenceValidator _references;
+    private readonly ICurrentUser _currentUser;
 
-    public LessonManager(ILessonDal lessonDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext)
+    public LessonManager(ILessonDal lessonDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser)
     {
         _lessonDal = lessonDal;
         _studentDal = studentDal;
         _userDal = userDal;
         _tenantContext = tenantContext;
+        _currentUser = currentUser;
+        _references = references;
     }
 
     public async Task<IDataResult<PagedResult<LessonDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -153,15 +157,20 @@ public class LessonManager : ILessonService
         }
 
         var student = await _studentDal.GetAsync(s => s.Id == createLessonDto.StudentId);
-        if (student == null) return new ErrorResult("Öğrenci bulunamadı.");
+        if (student == null) return new ErrorResult("Öğrenci bulunamadı.", ResultErrorType.NotFound);
 
-        // TODO: Öğretmenin de aynı tenant'a ait olduğunu doğrula; yalnızca öğrenci şu an tenant filtresinden geçirilmiş durumda.
+        // Hoca belirtilmediyse dersi kaydeden kullanıcıdır; belirtildiyse bu kursun hocası olmalıdır
+        var teacherId = createLessonDto.TeacherId is { } requestedTeacherId && requestedTeacherId != Guid.Empty
+            ? requestedTeacherId
+            : _currentUser.UserId ?? Guid.Empty;
+        var teacherError = await _references.EnsureTeacherAsync(teacherId);
+        if (teacherError != null) return teacherError;
 
-            var lesson = new Lesson
+        var lesson = new Lesson
         {
             TenantId = _tenantContext.TenantId,
             StudentId = createLessonDto.StudentId,
-            TeacherId = createLessonDto.TeacherId,
+            TeacherId = teacherId,
             LessonDate = lessonDateUtc,
             JuzNumber = createLessonDto.CuzNo ?? 0,
             PageNumber = createLessonDto.PageNo ?? 0,

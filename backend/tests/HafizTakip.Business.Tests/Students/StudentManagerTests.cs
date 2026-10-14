@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using HafizTakip.Business.Abstract;
 using HafizTakip.Business.Concrete;
 using HafizTakip.Core.Entities;
 using HafizTakip.Core.Utilities.IoC;
@@ -11,6 +12,7 @@ namespace HafizTakip.Business.Tests.Students;
 
 public class StudentManagerTests
 {
+    private readonly Mock<ITenantReferenceValidator> _referencesMock = new();
     private readonly Mock<IStudentDal> _studentDalMock;
     private readonly Mock<IGroupDal> _groupDalMock;
     private readonly Mock<ITenantContext> _tenantContextMock;
@@ -29,7 +31,8 @@ public class StudentManagerTests
         _studentManager = new StudentManager(
             _studentDalMock.Object,
             _groupDalMock.Object,
-            _tenantContextMock.Object);
+            _tenantContextMock.Object,
+            _referencesMock.Object);
     }
 
     [Fact]

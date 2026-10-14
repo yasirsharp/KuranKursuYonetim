@@ -28,6 +28,18 @@ public class EfEntityRepositoryBase<TEntity, TContext> : IEntityRepository<TEnti
             : await Context.Set<TEntity>().Where(filter).ToListAsync();
     }
 
+    public async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> filter)
+    {
+        return await Context.Set<TEntity>().AnyAsync(filter);
+    }
+
+    public async Task<int> CountAsync(Expression<Func<TEntity, bool>>? filter = null)
+    {
+        return filter == null
+            ? await Context.Set<TEntity>().CountAsync()
+            : await Context.Set<TEntity>().CountAsync(filter);
+    }
+
     public async Task AddAsync(TEntity entity)
     {
         var addedEntity = Context.Entry(entity);

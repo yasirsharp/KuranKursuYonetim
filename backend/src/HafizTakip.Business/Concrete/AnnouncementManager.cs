@@ -13,12 +13,14 @@ public class AnnouncementManager : IAnnouncementService
     private readonly IAnnouncementDal _announcementDal;
     private readonly IUserDal _userDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ICurrentUser _currentUser;
 
-    public AnnouncementManager(IAnnouncementDal announcementDal, IUserDal userDal, ITenantContext tenantContext)
+    public AnnouncementManager(IAnnouncementDal announcementDal, IUserDal userDal, ITenantContext tenantContext, ICurrentUser currentUser)
     {
         _announcementDal = announcementDal;
         _userDal = userDal;
         _tenantContext = tenantContext;
+        _currentUser = currentUser;
     }
 
     public async Task<IDataResult<PagedResult<AnnouncementDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -84,7 +86,7 @@ public class AnnouncementManager : IAnnouncementService
         var announcement = new Announcement
         {
             TenantId = _tenantContext.TenantId,
-            AuthorId = createAnnouncementDto.AuthorId,
+            AuthorId = _currentUser.UserId ?? Guid.Empty, // Yazar her zaman duyuruyu yayınlayan kullanıcıdır
             Title = createAnnouncementDto.Title,
             Content = createAnnouncementDto.Content,
             TargetAudience = createAnnouncementDto.TargetAudience,

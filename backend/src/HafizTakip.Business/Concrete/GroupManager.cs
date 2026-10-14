@@ -15,12 +15,14 @@ public class GroupManager : IGroupService
     private readonly IGroupDal _groupDal;
     private readonly IUserDal _userDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ITenantReferenceValidator _references;
 
-    public GroupManager(IGroupDal groupDal, IUserDal userDal, ITenantContext tenantContext)
+    public GroupManager(IGroupDal groupDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references)
     {
         _groupDal = groupDal;
         _userDal = userDal;
         _tenantContext = tenantContext;
+        _references = references;
     }
 
     public async Task<IDataResult<PagedResult<GroupDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -75,8 +77,8 @@ public class GroupManager : IGroupService
     [ValidationAspect(typeof(CreateGroupValidator))]
     public async Task<IResult> AddAsync(CreateGroupDto createGroupDto)
     {
-        var teacher = await _userDal.GetAsync(u => u.Id == createGroupDto.TeacherId);
-        if (teacher == null) return new ErrorResult("Seçilen öğretmen bulunamadı.");
+        var referenceError = await _references.EnsureTeacherAsync(createGroupDto.TeacherId);
+        if (referenceError != null) return referenceError;
 
         var group = new Group
         {
@@ -93,7 +95,10 @@ public class GroupManager : IGroupService
     public async Task<IResult> UpdateAsync(UpdateGroupDto updateGroupDto)
     {
         var group = await _groupDal.GetAsync(x => x.Id == updateGroupDto.Id);
-        if (group == null) return new ErrorResult("Sınıf bulunamadı.");
+        if (group == null) return new ErrorResult("Sınıf bulunamadı.", ResultErrorType.NotFound);
+
+        var referenceError = await _references.EnsureTeacherAsync(updateGroupDto.TeacherId);
+        if (referenceError != null) return referenceError;
 
         group.TeacherId = updateGroupDto.TeacherId;
         group.Name = updateGroupDto.Name;

@@ -19,12 +19,14 @@ public class AttendanceManager : IAttendanceService
     private readonly IAttendanceDal _attendanceDal;
     private readonly IStudentDal _studentDal;
     private readonly ITenantContext _tenantContext;
+    private readonly ITenantReferenceValidator _references;
 
-    public AttendanceManager(IAttendanceDal attendanceDal, IStudentDal studentDal, ITenantContext tenantContext)
+    public AttendanceManager(IAttendanceDal attendanceDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references)
     {
         _attendanceDal = attendanceDal;
         _studentDal = studentDal;
         _tenantContext = tenantContext;
+        _references = references;
     }
 
     public async Task<IDataResult<PagedResult<AttendanceDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -116,13 +118,15 @@ public class AttendanceManager : IAttendanceService
     [ValidationAspect(typeof(CreateAttendanceValidator))]
     public async Task<IResult> AddAsync(CreateAttendanceDto createAttendanceDto)
     {
-        // TODO: Öğrencinin bu tenant'a ait olduğunu doğrula; DTO'daki StudentId doğrudan kayda yazılıyor.
+        var referenceError = await _references.EnsureStudentAsync(createAttendanceDto.StudentId);
+        if (referenceError != null) return referenceError;
+
         var dateUtc = DateTime.SpecifyKind(createAttendanceDto.Date.Date, DateTimeKind.Utc);
         var nextDateUtc = dateUtc.AddDays(1);
         var existing = await _attendanceDal.GetAsync(a => a.StudentId == createAttendanceDto.StudentId && a.Date >= dateUtc && a.Date < nextDateUtc);
         if (existing != null)
         {
-            return new ErrorResult("Bu öğrenci için bu tarihte zaten bir yoklama kaydı var.");
+            return new ErrorResult("Bu öğrenci için bu tarihte zaten bir yoklama kaydı var.", ResultErrorType.Conflict);
         }
 
         var attendance = new Attendance
@@ -141,7 +145,11 @@ public class AttendanceManager : IAttendanceService
     [ValidationAspect(typeof(BulkAttendanceValidator))]
     public async Task<IResult> AddBulkAsync(BulkAttendanceDto bulkAttendanceDto)
     {
-        // TODO: Tüm öğrenci kimliklerini tenant içinde doğrula ve toplu yazımları tek transaction altında çalıştır.
+        var referenceError = await _references.EnsureStudentsAsync(
+            bulkAttendanceDto.Attendances.Select(a => a.StudentId).ToList());
+        if (referenceError != null) return referenceError;
+
+        // TODO: Toplu yazımları tek transaction altında çalıştır (Unit of Work — Sprint 2).
         var dateUtc = DateTime.SpecifyKind(bulkAttendanceDto.Date.Date, DateTimeKind.Utc);
         var nextDateUtc = dateUtc.AddDays(1);
         

@@ -17,7 +17,8 @@ export interface ILesson {
 
 export interface ICreateLesson {
   studentId: string;
-  teacherId: string;
+  /** Boş bırakılırsa backend dersi kaydeden hocayı kullanır. */
+  teacherId?: string;
   lessonDate: string;
   cuzNo?: number;
   pageNo?: number;
