@@ -5,6 +5,7 @@ using HafizTakip.Business.Concrete;
 using HafizTakip.Core.Entities;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Requests;
+using HafizTakip.Core.Utilities.Results;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
@@ -42,7 +43,8 @@ public class DailyAssignmentManagerTests
             _tenantContextMock.Object,
             _notificationServiceMock.Object,
             _currentUserMock.Object,
-            AccessScopes.Unrestricted());
+            AccessScopes.Unrestricted(),
+            UnitOfWorks.PassThrough().Object);
     }
 
     [Fact]
@@ -172,6 +174,10 @@ public class DailyAssignmentManagerTests
             .Setup(s => s.GetAsync(It.IsAny<Expression<Func<Student, bool>>>()))
             .ReturnsAsync(student);
 
+        _notificationServiceMock
+            .Setup(n => n.AddAsync(It.IsAny<CreateParentNotificationDto>()))
+            .ReturnsAsync(new SuccessResult());
+
         // Act
         var result = await _manager.CompleteEtutAsync(dto);
 
@@ -182,5 +188,30 @@ public class DailyAssignmentManagerTests
         _notificationServiceMock.Verify(n => n.AddAsync(It.Is<CreateParentNotificationDto>(p =>
             p.StudentId == studentId &&
             p.NotificationType == "homework")), Times.Once);
+    }
+
+    [Fact]
+    public async Task AddAsync_WhenParentNotificationFails_ShouldReturnFailureSoTransactionRollsBack()
+    {
+        // Arrange: yatılı olmayan öğrenci → görev doğrudan veliye gider ve bildirim gerekir
+        var student = new Student { Id = Guid.NewGuid(), FirstName = "Yusuf", LastName = "Kaya", IsBoarder = false };
+        _studentDalMock
+            .Setup(s => s.GetAsync(It.IsAny<Expression<Func<Student, bool>>>()))
+            .ReturnsAsync(student);
+        _notificationServiceMock
+            .Setup(n => n.AddAsync(It.IsAny<CreateParentNotificationDto>()))
+            .ReturnsAsync(new ErrorResult("Bildirim oluşturulamadı."));
+
+        // Act
+        var result = await _manager.AddAsync(new CreateDailyAssignmentDto
+        {
+            StudentId = student.Id,
+            AssignmentDate = DateTime.UtcNow.Date,
+            AssignedTasks = new List<AssignmentTaskItem> { new() { Id = "t1", Type = "ezber", Cuz = 1, Page = 3 } }
+        });
+
+        // Assert: başarısız sonuç Unit of Work'ün görevi de geri almasını sağlar
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("Bildirim");
     }
 }

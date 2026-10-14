@@ -1,3 +1,4 @@
+using HafizTakip.Core.DataAccess;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Core.Utilities.Results;
@@ -18,6 +19,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
     private readonly IParentNotificationService _notificationService;
     private readonly ICurrentUser _currentUser;
     private readonly IStudentAccessScope _accessScope;
+    private readonly IUnitOfWork _unitOfWork;
 
     public DailyAssignmentManager(
         IDailyAssignmentDal dailyAssignmentDal, 
@@ -25,7 +27,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
         IUserDal userDal, 
         ITenantContext tenantContext,
         IParentNotificationService notificationService,
-        ICurrentUser currentUser, IStudentAccessScope accessScope)
+        ICurrentUser currentUser, IStudentAccessScope accessScope, IUnitOfWork unitOfWork)
     {
         _dailyAssignmentDal = dailyAssignmentDal;
         _studentDal = studentDal;
@@ -34,6 +36,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
         _notificationService = notificationService;
         _currentUser = currentUser;
         _accessScope = accessScope;
+        _unitOfWork = unitOfWork;
     }
 
     private Guid GetCurrentUserId() => _currentUser.UserId ?? Guid.Empty;
@@ -110,15 +113,20 @@ public class DailyAssignmentManager : IDailyAssignmentService
             Status = isBoarder ? "assigned" : "sent_to_parent"
         };
 
-        await _dailyAssignmentDal.AddAsync(assignment);
-
-        if (!isBoarder)
+        // Görev ve (gerekiyorsa) veli bildirimi birlikte kaydedilir; biri başarısız olursa ikisi de geri alınır
+        return await _unitOfWork.ExecuteInTransactionAsync<Core.Utilities.Results.IResult>(async () =>
         {
-            // Direkt eve gidiyorsa, veliye bildirim at.
-            await SendParentNotification(student, assignment);
-        }
+            await _dailyAssignmentDal.AddAsync(assignment);
 
-        return new SuccessResult("Görev başarıyla atandı.");
+            if (!isBoarder)
+            {
+                // Direkt eve gidiyorsa, veliye bildirim at.
+                var notificationResult = await SendParentNotification(student, assignment);
+                if (!notificationResult.Success) return notificationResult;
+            }
+
+            return new SuccessResult("Görev başarıyla atandı.");
+        });
     }
 
     public async Task<Core.Utilities.Results.IResult> CompleteEtutAsync(CompleteEtutAssignmentDto dto)
@@ -131,31 +139,34 @@ public class DailyAssignmentManager : IDailyAssignmentService
         if (!string.IsNullOrEmpty(dto.EtutTeacherNote))
             assignment.EtutTeacherNote = dto.EtutTeacherNote;
 
-        if (dto.FinishEtut)
+        // Görev güncellemesi ve (gerekiyorsa) veli bildirimi birlikte kaydedilir
+        return await _unitOfWork.ExecuteInTransactionAsync<Core.Utilities.Results.IResult>(async () =>
         {
-            // Kalanları kontrol et
-            var assignedTasks = JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new();
-            var uncompletedCount = assignedTasks.Count(t => !dto.CompletedTaskIds.Contains(t.Id));
-
-            if (uncompletedCount > 0)
+            if (dto.FinishEtut)
             {
-                assignment.Status = "sent_to_parent";
-                var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
-                if (student != null)
+                // Kalanları kontrol et
+                var assignedTasks = JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new();
+                var uncompletedCount = assignedTasks.Count(t => !dto.CompletedTaskIds.Contains(t.Id));
+
+                if (uncompletedCount > 0)
                 {
-                    await SendParentNotification(student, assignment);
+                    assignment.Status = "sent_to_parent";
+                    var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
+                    if (student != null)
+                    {
+                        var notificationResult = await SendParentNotification(student, assignment);
+                        if (!notificationResult.Success) return notificationResult;
+                    }
+                }
+                else
+                {
+                    assignment.Status = "completed";
                 }
             }
-            else
-            {
-                assignment.Status = "completed";
-            }
-        }
 
-        assignment.UpdatedAt = DateTime.UtcNow;
-        await _dailyAssignmentDal.UpdateAsync(assignment);
-
-        return new SuccessResult("Etüt değerlendirmesi kaydedildi.");
+            await _dailyAssignmentDal.UpdateAsync(assignment);
+            return new SuccessResult("Etüt değerlendirmesi kaydedildi.");
+        });
     }
 
     public async Task<Core.Utilities.Results.IResult> CompleteHomeAsync(CompleteHomeAssignmentDto dto)
@@ -214,9 +225,9 @@ public class DailyAssignmentManager : IDailyAssignmentService
         return new SuccessDataResult<PagedResult<DailyAssignmentDto>>(result, "Görevler listelendi.");
     }
 
-    private async Task SendParentNotification(Student student, DailyAssignment assignment)
+    private Task<Core.Utilities.Results.IResult> SendParentNotification(Student student, DailyAssignment assignment)
     {
-        await _notificationService.AddAsync(new CreateParentNotificationDto
+        return _notificationService.AddAsync(new CreateParentNotificationDto
         {
             StudentId = student.Id,
             NotificationType = "homework",

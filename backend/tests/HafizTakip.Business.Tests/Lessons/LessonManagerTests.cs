@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Business.Concrete;
+using HafizTakip.Core.DataAccess;
 using HafizTakip.Core.Entities;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Requests;
@@ -15,6 +16,7 @@ public class LessonManagerTests
 {
     private readonly Mock<ITenantReferenceValidator> _referencesMock = new();
     private readonly Mock<ICurrentUser> _currentUserMock = new();
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock = UnitOfWorks.PassThrough();
     private readonly Mock<ILessonDal> _lessonDalMock;
     private readonly Mock<IStudentDal> _studentDalMock;
     private readonly Mock<IUserDal> _userDalMock;
@@ -39,7 +41,8 @@ public class LessonManagerTests
             _tenantContextMock.Object,
             _referencesMock.Object,
             _currentUserMock.Object,
-            AccessScopes.Unrestricted());
+            AccessScopes.Unrestricted(),
+            _unitOfWorkMock.Object);
     }
 
     [Fact]
@@ -86,16 +89,21 @@ public class LessonManagerTests
         result.Success.Should().BeTrue();
         result.Message.Should().Contain("başarıyla kaydedildi");
 
-        _lessonDalMock.Verify(d => d.AddAsync(It.Is<Lesson>(l =>
+        _lessonDalMock.Verify(d => d.Add(It.Is<Lesson>(l =>
             l.TenantId == _testTenantId &&
             l.StudentId == studentId &&
             l.TeacherId == teacherId &&
             l.LessonDate.Kind == DateTimeKind.Utc &&
             l.PageNumber == 16)), Times.Once);
 
-        _studentDalMock.Verify(s => s.UpdateAsync(It.Is<Student>(st =>
+        _studentDalMock.Verify(s => s.Update(It.Is<Student>(st =>
             st.CurrentPage == 16 &&
             st.CompletedPages == 11)), Times.Once);
+
+        // Ders ve öğrenci ilerlemesi tek SaveChanges ile (atomik) kaydedilir
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+        _lessonDalMock.Verify(d => d.AddAsync(It.IsAny<Lesson>()), Times.Never);
+        _studentDalMock.Verify(s => s.UpdateAsync(It.IsAny<Student>()), Times.Never);
     }
 
     [Fact]
@@ -127,7 +135,8 @@ public class LessonManagerTests
         // Assert
         result.Success.Should().BeFalse();
         result.Message.Should().Contain("zaten bir ders kaydı mevcut");
-        _lessonDalMock.Verify(d => d.AddAsync(It.IsAny<Lesson>()), Times.Never);
+        _lessonDalMock.Verify(d => d.Add(It.IsAny<Lesson>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Never);
     }
 
     [Fact]
@@ -155,7 +164,8 @@ public class LessonManagerTests
         // Assert
         result.Success.Should().BeFalse();
         result.Message.Should().Contain("Öğrenci bulunamadı");
-        _lessonDalMock.Verify(d => d.AddAsync(It.IsAny<Lesson>()), Times.Never);
+        _lessonDalMock.Verify(d => d.Add(It.IsAny<Lesson>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Never);
     }
 
     [Fact]

@@ -74,7 +74,8 @@ public class StudentAccessScopeTests
         var lessonDal = new Mock<ILessonDal>();
         var manager = new LessonManager(lessonDal.Object, new Mock<IStudentDal>().Object, new Mock<IUserDal>().Object,
             new Mock<ITenantContext>().Object, new Mock<HafizTakip.Business.Abstract.ITenantReferenceValidator>().Object,
-            _currentUser.Object, AccessScopes.Only(_ownChild));
+            _currentUser.Object, AccessScopes.Only(_ownChild),
+            UnitOfWorks.PassThrough().Object);
 
         var result = await manager.GetByStudentIdAsync(_otherChild, new PaginationParams());
 
@@ -90,7 +91,8 @@ public class StudentAccessScopeTests
             .ReturnsAsync(new HafizTakip.Entities.Concrete.Attendance { Id = Guid.NewGuid(), StudentId = _otherChild });
         var manager = new AttendanceManager(attendanceDal.Object, new Mock<IStudentDal>().Object,
             new Mock<ITenantContext>().Object, new Mock<HafizTakip.Business.Abstract.ITenantReferenceValidator>().Object,
-            AccessScopes.Only(_ownChild));
+            AccessScopes.Only(_ownChild),
+            UnitOfWorks.PassThrough().Object);
 
         var result = await manager.GetByIdAsync(Guid.NewGuid());
 
@@ -105,7 +107,8 @@ public class StudentAccessScopeTests
         dal.Setup(d => d.GetAsync(It.IsAny<Expression<Func<DailyAssignment, bool>>>())).ReturnsAsync(assignment);
         var manager = new DailyAssignmentManager(dal.Object, new Mock<IStudentDal>().Object, new Mock<IUserDal>().Object,
             new Mock<ITenantContext>().Object, new Mock<HafizTakip.Business.Abstract.IParentNotificationService>().Object,
-            _currentUser.Object, AccessScopes.Only(_ownChild));
+            _currentUser.Object, AccessScopes.Only(_ownChild),
+            UnitOfWorks.PassThrough().Object);
 
         var result = await manager.CompleteHomeAsync(new CompleteHomeAssignmentDto { Id = assignment.Id });
 

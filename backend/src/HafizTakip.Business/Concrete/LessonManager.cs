@@ -1,3 +1,4 @@
+using HafizTakip.Core.DataAccess;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,8 +24,9 @@ public class LessonManager : ILessonService
     private readonly ITenantReferenceValidator _references;
     private readonly ICurrentUser _currentUser;
     private readonly IStudentAccessScope _accessScope;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public LessonManager(ILessonDal lessonDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser, IStudentAccessScope accessScope)
+    public LessonManager(ILessonDal lessonDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser, IStudentAccessScope accessScope, IUnitOfWork unitOfWork)
     {
         _lessonDal = lessonDal;
         _studentDal = studentDal;
@@ -33,6 +35,7 @@ public class LessonManager : ILessonService
         _currentUser = currentUser;
         _references = references;
         _accessScope = accessScope;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IDataResult<PagedResult<LessonDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -194,21 +197,24 @@ public class LessonManager : ILessonService
         // Eğer yeni sayfa verildiyse (Tekrar değilse), öğrencinin ilerlemesini güncelle
         if (createLessonDto.IsNewPage)
         {
-            // TODO: Sayfa aralığı/tekrarları dikkate alan idempotent ilerleme hesabı yap ve öğrenci ile ders güncellemesini tek transaction'da kaydet.
+            // TODO: Sayfa aralığı/tekrarları dikkate alan idempotent ilerleme hesabı (Sprint 6 — ezber haritası).
             student.CompletedPages += 1;
             student.CurrentPage = createLessonDto.PageNo ?? student.CurrentPage;
-            
+
             // Hafızlık bitiş kontrolü (toplam 604 sayfa)
             if (student.CompletedPages >= 604)
             {
                 student.IsHafiz = true;
                 student.Status = "graduated";
             }
-            
-            await _studentDal.UpdateAsync(student);
+
+            _studentDal.Update(student);
         }
 
-        await _lessonDal.AddAsync(lesson);
+        _lessonDal.Add(lesson);
+
+        // Ders ve öğrenci ilerlemesi tek SaveChanges ile atomik kaydedilir: biri başarısız olursa ikisi de yazılmaz
+        await _unitOfWork.SaveChangesAsync();
         return new SuccessResult("Ders başarıyla kaydedildi.");
     }
 

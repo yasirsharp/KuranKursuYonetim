@@ -2,6 +2,7 @@ using System.Security.Authentication;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -71,6 +72,23 @@ public class ExceptionMiddleware
                 };
                 break;
 
+            // Veritabanı kısıtları: uygulama kontrolünü aşan eşzamanlı isteklerde son savunma hattı
+            case DbUpdateException dbException when GetSqlState(dbException) == UniqueViolation:
+                details = new ErrorDetails
+                {
+                    StatusCode = StatusCodes.Status409Conflict,
+                    Message = "Bu kayıt zaten mevcut."
+                };
+                break;
+
+            case DbUpdateException dbException when GetSqlState(dbException) == ForeignKeyViolation:
+                details = new ErrorDetails
+                {
+                    StatusCode = StatusCodes.Status400BadRequest,
+                    Message = "İlişkili kayıt bulunamadı veya bu kursa ait değil."
+                };
+                break;
+
             default:
                 _logger.LogError(e, "İşlenmeyen hata: {Method} {Path}", httpContext.Request.Method, httpContext.Request.Path);
                 details = new ErrorDetails
@@ -86,6 +104,23 @@ public class ExceptionMiddleware
         httpContext.Response.ContentType = "application/json";
         httpContext.Response.StatusCode = details.StatusCode;
         return httpContext.Response.WriteAsync(JsonSerializer.Serialize(details, details.GetType(), JsonOptions));
+    }
+
+    private const string UniqueViolation = "23505";
+    private const string ForeignKeyViolation = "23503";
+
+    /// <summary>
+    /// İç hatalardaki PostgreSQL SQLSTATE kodunu okur. Core katmanı Npgsql'e bağımlı olmasın diye
+    /// PostgresException.SqlState yansıma (reflection) ile alınır.
+    /// </summary>
+    private static string? GetSqlState(Exception exception)
+    {
+        for (var inner = exception.InnerException; inner != null; inner = inner.InnerException)
+        {
+            if (inner.GetType().GetProperty("SqlState")?.GetValue(inner) is string sqlState)
+                return sqlState;
+        }
+        return null;
     }
 }
 

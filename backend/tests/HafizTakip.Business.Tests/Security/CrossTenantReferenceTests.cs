@@ -35,7 +35,8 @@ public class CrossTenantReferenceTests
         var attendanceDal = new Mock<IAttendanceDal>();
         _references.Setup(r => r.EnsureStudentsAsync(It.IsAny<IReadOnlyCollection<Guid>>())).ReturnsAsync(NotFound);
         var manager = new AttendanceManager(attendanceDal.Object, new Mock<IStudentDal>().Object, _tenantContext.Object, _references.Object,
-            AccessScopes.Unrestricted());
+            AccessScopes.Unrestricted(),
+            UnitOfWorks.PassThrough().Object);
 
         var result = await manager.AddBulkAsync(new BulkAttendanceDto
         {
@@ -114,7 +115,7 @@ public class CrossTenantReferenceTests
 
         result.Success.Should().BeTrue();
         _references.Verify(r => r.EnsureTeacherAsync(_currentUserId), Times.Once);
-        lessonDal.Verify(d => d.AddAsync(It.Is<Lesson>(l => l.TeacherId == _currentUserId)), Times.Once);
+        lessonDal.Verify(d => d.Add(It.Is<Lesson>(l => l.TeacherId == _currentUserId)), Times.Once);
     }
 
     [Fact]
@@ -132,7 +133,7 @@ public class CrossTenantReferenceTests
         });
 
         result.ErrorType.Should().Be(ResultErrorType.NotFound);
-        lessonDal.Verify(d => d.AddAsync(It.IsAny<Lesson>()), Times.Never);
+        lessonDal.Verify(d => d.Add(It.IsAny<Lesson>()), Times.Never);
     }
 
     private (LessonManager Manager, Mock<ILessonDal> LessonDal) CreateLessonManager()
@@ -143,7 +144,8 @@ public class CrossTenantReferenceTests
         studentDal.Setup(d => d.GetAsync(It.IsAny<Expression<Func<Student, bool>>>())).ReturnsAsync(new Student { Id = Guid.NewGuid() });
         var manager = new LessonManager(lessonDal.Object, studentDal.Object, new Mock<IUserDal>().Object,
             _tenantContext.Object, _references.Object, _currentUser.Object,
-            AccessScopes.Unrestricted());
+            AccessScopes.Unrestricted(),
+            UnitOfWorks.PassThrough().Object);
         return (manager, lessonDal);
     }
 }

@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Business.Concrete;
+using HafizTakip.Core.DataAccess;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.DataAccess.Abstract;
@@ -13,6 +14,7 @@ namespace HafizTakip.Business.Tests.Attendance;
 public class AttendanceManagerTests
 {
     private readonly Mock<ITenantReferenceValidator> _referencesMock = new();
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock = UnitOfWorks.PassThrough();
     private readonly Mock<IAttendanceDal> _attendanceDalMock;
     private readonly Mock<IStudentDal> _studentDalMock;
     private readonly Mock<ITenantContext> _tenantContextMock;
@@ -34,7 +36,8 @@ public class AttendanceManagerTests
             _studentDalMock.Object,
             _tenantContextMock.Object,
             _referencesMock.Object,
-            AccessScopes.Unrestricted());
+            AccessScopes.Unrestricted(),
+            _unitOfWorkMock.Object);
     }
 
     [Fact]
@@ -56,8 +59,8 @@ public class AttendanceManagerTests
         };
 
         _attendanceDalMock
-            .Setup(d => d.GetAsync(It.IsAny<Expression<Func<Entities.Concrete.Attendance, bool>>>()))
-            .ReturnsAsync((Entities.Concrete.Attendance?)null);
+            .Setup(d => d.GetListAsync(It.IsAny<Expression<Func<Entities.Concrete.Attendance, bool>>>()))
+            .ReturnsAsync(new List<Entities.Concrete.Attendance>());
 
         // Act
         var result = await _attendanceManager.AddBulkAsync(dto);
@@ -66,17 +69,20 @@ public class AttendanceManagerTests
         result.Success.Should().BeTrue();
         result.Message.Should().Contain("başarıyla");
 
-        _attendanceDalMock.Verify(d => d.AddAsync(It.Is<Entities.Concrete.Attendance>(a =>
+        _attendanceDalMock.Verify(d => d.Add(It.Is<Entities.Concrete.Attendance>(a =>
             a.TenantId == _testTenantId &&
             a.StudentId == studentId1 &&
             a.Status == "present" &&
             a.Date.Kind == DateTimeKind.Utc)), Times.Once);
 
-        _attendanceDalMock.Verify(d => d.AddAsync(It.Is<Entities.Concrete.Attendance>(a =>
+        _attendanceDalMock.Verify(d => d.Add(It.Is<Entities.Concrete.Attendance>(a =>
             a.TenantId == _testTenantId &&
             a.StudentId == studentId2 &&
             a.Status == "absent" &&
             a.Date.Kind == DateTimeKind.Utc)), Times.Once);
+
+        // Tüm sınıfın yoklaması tek seferde kaydedilir
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
     }
 
     [Fact]
@@ -106,8 +112,8 @@ public class AttendanceManagerTests
         };
 
         _attendanceDalMock
-            .Setup(d => d.GetAsync(It.IsAny<Expression<Func<Entities.Concrete.Attendance, bool>>>()))
-            .ReturnsAsync(existingAttendance);
+            .Setup(d => d.GetListAsync(It.IsAny<Expression<Func<Entities.Concrete.Attendance, bool>>>()))
+            .ReturnsAsync(new List<Entities.Concrete.Attendance> { existingAttendance });
 
         // Act
         var result = await _attendanceManager.AddBulkAsync(dto);
@@ -117,8 +123,9 @@ public class AttendanceManagerTests
         existingAttendance.Status.Should().Be("present");
         existingAttendance.Notes.Should().Be("Geç geldi, düzeltildi");
 
-        _attendanceDalMock.Verify(d => d.UpdateAsync(existingAttendance), Times.Once);
-        _attendanceDalMock.Verify(d => d.AddAsync(It.IsAny<Entities.Concrete.Attendance>()), Times.Never);
+        _attendanceDalMock.Verify(d => d.Update(existingAttendance), Times.Once);
+        _attendanceDalMock.Verify(d => d.Add(It.IsAny<Entities.Concrete.Attendance>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
     }
 
     [Fact]

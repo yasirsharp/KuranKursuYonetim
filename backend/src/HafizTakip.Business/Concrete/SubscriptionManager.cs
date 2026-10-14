@@ -1,3 +1,4 @@
+using HafizTakip.Core.DataAccess;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Core.Utilities.Results;
@@ -11,11 +12,13 @@ public class SubscriptionManager : ISubscriptionService
 {
     private readonly ISubscriptionDal _subscriptionDal;
     private readonly ITenantDal _tenantDal;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public SubscriptionManager(ISubscriptionDal subscriptionDal, ITenantDal tenantDal)
+    public SubscriptionManager(ISubscriptionDal subscriptionDal, ITenantDal tenantDal, IUnitOfWork unitOfWork)
     {
         _subscriptionDal = subscriptionDal;
         _tenantDal = tenantDal;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IDataResult<PagedResult<SubscriptionDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -102,8 +105,7 @@ public class SubscriptionManager : ISubscriptionService
         foreach (var existing in existingActive)
         {
             existing.Status = "cancelled";
-            existing.UpdatedAt = DateTime.UtcNow;
-            await _subscriptionDal.UpdateAsync(existing);
+            _subscriptionDal.Update(existing);
         }
 
         var subscription = new Subscription
@@ -115,7 +117,10 @@ public class SubscriptionManager : ISubscriptionService
             Status = "active"
         };
 
-        await _subscriptionDal.AddAsync(subscription);
+        _subscriptionDal.Add(subscription);
+
+        // Eski aboneliklerin iptali ve yenisinin eklenmesi tek SaveChanges ile atomik kaydedilir
+        await _unitOfWork.SaveChangesAsync();
         return new SuccessResult("Abonelik oluşturuldu.");
     }
 

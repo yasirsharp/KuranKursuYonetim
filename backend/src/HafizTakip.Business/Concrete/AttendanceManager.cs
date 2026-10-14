@@ -1,3 +1,4 @@
+using HafizTakip.Core.DataAccess;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,14 +22,16 @@ public class AttendanceManager : IAttendanceService
     private readonly ITenantContext _tenantContext;
     private readonly ITenantReferenceValidator _references;
     private readonly IStudentAccessScope _accessScope;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public AttendanceManager(IAttendanceDal attendanceDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references, IStudentAccessScope accessScope)
+    public AttendanceManager(IAttendanceDal attendanceDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references, IStudentAccessScope accessScope, IUnitOfWork unitOfWork)
     {
         _attendanceDal = attendanceDal;
         _studentDal = studentDal;
         _tenantContext = tenantContext;
         _references = references;
         _accessScope = accessScope;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IDataResult<PagedResult<AttendanceDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -158,37 +161,46 @@ public class AttendanceManager : IAttendanceService
             bulkAttendanceDto.Attendances.Select(a => a.StudentId).ToList());
         if (referenceError != null) return referenceError;
 
-        // TODO: Toplu yazımları tek transaction altında çalıştır (Unit of Work — Sprint 2).
         var dateUtc = DateTime.SpecifyKind(bulkAttendanceDto.Date.Date, DateTimeKind.Utc);
         var nextDateUtc = dateUtc.AddDays(1);
-        
-        foreach (var item in bulkAttendanceDto.Attendances)
+
+        // Aynı öğrenci listede birden fazla geçerse son değer geçerlidir
+        var items = bulkAttendanceDto.Attendances
+            .GroupBy(a => a.StudentId)
+            .Select(g => g.Last())
+            .ToList();
+        var studentIds = items.Select(a => a.StudentId).ToList();
+
+        // O günün mevcut kayıtları tek sorguda alınır
+        var existingByStudent = (await _attendanceDal.GetListAsync(a =>
+                studentIds.Contains(a.StudentId) && a.Date >= dateUtc && a.Date < nextDateUtc))
+            .ToDictionary(a => a.StudentId);
+
+        foreach (var item in items)
         {
-            var existing = await _attendanceDal.GetAsync(a => a.StudentId == item.StudentId && a.Date >= dateUtc && a.Date < nextDateUtc);
-            
-            if (existing != null)
+            if (existingByStudent.TryGetValue(item.StudentId, out var existing))
             {
                 // Varsa güncelle
                 existing.Status = item.Status;
                 existing.Notes = item.Notes;
-                existing.UpdatedAt = DateTime.UtcNow;
-                await _attendanceDal.UpdateAsync(existing);
+                _attendanceDal.Update(existing);
             }
             else
             {
                 // Yoksa ekle
-                var attendance = new Attendance
+                _attendanceDal.Add(new Attendance
                 {
                     TenantId = _tenantContext.TenantId,
                     StudentId = item.StudentId,
                     Date = dateUtc,
                     Status = item.Status,
                     Notes = item.Notes
-                };
-                await _attendanceDal.AddAsync(attendance);
+                });
             }
         }
 
+        // Tüm sınıfın yoklaması tek SaveChanges ile atomik kaydedilir
+        await _unitOfWork.SaveChangesAsync();
         return new SuccessResult("Toplu yoklama işlemi başarıyla tamamlandı.");
     }
 
