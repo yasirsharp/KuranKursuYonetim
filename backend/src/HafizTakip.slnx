@@ -5,4 +5,5 @@
   <Project Path="HafizTakip.Entities/HafizTakip.Entities.csproj" />
   <Project Path="HafizTakip.WebAPI/HafizTakip.WebAPI.csproj" />
   <Project Path="../tests/HafizTakip.Business.Tests/HafizTakip.Business.Tests.csproj" />
+  <Project Path="../tests/HafizTakip.IntegrationTests/HafizTakip.IntegrationTests.csproj" />
 </Solution>

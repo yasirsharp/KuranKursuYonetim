@@ -56,10 +56,15 @@ public class EfEntityRepositoryBase<TEntity, TContext> : IEntityRepository<TEnti
 
     public async Task DeleteAsync(TEntity entity)
     {
-        // NOT: Bizim yapımızda bu fiziksel silme (eğer IsDeleted mantığı yoksa)
-        // ITenantEntity ve BaseEntity'de soft-delete için Update çağrılır.
+        // DbContext kaydederken Deleted durumunu soft delete'e çevirir.
         var deletedEntity = Context.Entry(entity);
         deletedEntity.State = EntityState.Deleted;
         await Context.SaveChangesAsync();
     }
+
+    public void Add(TEntity entity) => Context.Entry(entity).State = EntityState.Added;
+
+    public void Update(TEntity entity) => Context.Entry(entity).State = EntityState.Modified;
+
+    public void Remove(TEntity entity) => Context.Entry(entity).State = EntityState.Deleted;
 }
