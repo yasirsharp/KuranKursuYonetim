@@ -1,3 +1,6 @@
+using HafizTakip.Core.Enums;
+using HafizTakip.Core.Aspects.Autofac.Validation;
+using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Core.DataAccess;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
@@ -60,7 +63,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
     {
         var targetDateUtc = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
         var nextDateUtc = targetDateUtc.AddDays(1);
-        var assignments = await _dailyAssignmentDal.GetListAsync(a => a.AssignmentDate >= targetDateUtc && a.AssignmentDate < nextDateUtc && a.IsBoarderToday && a.Status == "assigned");
+        var assignments = await _dailyAssignmentDal.GetListAsync(a => a.AssignmentDate >= targetDateUtc && a.AssignmentDate < nextDateUtc && a.IsBoarderToday && a.Status == AssignmentStatus.Assigned);
         return await CreatePagedResult(assignments, paginationParams);
     }
 
@@ -94,6 +97,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
         return new SuccessDataResult<DailyAssignmentDto>(dto);
     }
 
+    [ValidationAspect(typeof(CreateDailyAssignmentValidator))]
     public async Task<Core.Utilities.Results.IResult> AddAsync(CreateDailyAssignmentDto dto)
     {
         var student = await _studentDal.GetAsync(s => s.Id == dto.StudentId);
@@ -110,7 +114,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
             AssignmentDate = dto.AssignmentDate,
             IsBoarderToday = isBoarder,
             AssignedTasks = JsonSerializer.Serialize(dto.AssignedTasks),
-            Status = isBoarder ? "assigned" : "sent_to_parent"
+            Status = isBoarder ? AssignmentStatus.Assigned : AssignmentStatus.SentToParent
         };
 
         // Görev ve (gerekiyorsa) veli bildirimi birlikte kaydedilir; biri başarısız olursa ikisi de geri alınır
@@ -133,7 +137,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
     {
         var assignment = await _dailyAssignmentDal.GetAsync(a => a.Id == dto.Id);
         if (assignment == null) return new ErrorResult("Görev bulunamadı.");
-        if (assignment.Status != "assigned") return new ErrorResult("Bu görev artık etüt hocasında değil.");
+        if (assignment.Status != AssignmentStatus.Assigned) return new ErrorResult("Bu görev artık etüt hocasında değil.");
 
         assignment.CompletedInEtut = JsonSerializer.Serialize(dto.CompletedTaskIds);
         if (!string.IsNullOrEmpty(dto.EtutTeacherNote))
@@ -150,7 +154,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
 
                 if (uncompletedCount > 0)
                 {
-                    assignment.Status = "sent_to_parent";
+                    assignment.Status = AssignmentStatus.SentToParent;
                     var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
                     if (student != null)
                     {
@@ -160,7 +164,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
                 }
                 else
                 {
-                    assignment.Status = "completed";
+                    assignment.Status = AssignmentStatus.Completed;
                 }
             }
 
@@ -174,13 +178,13 @@ public class DailyAssignmentManager : IDailyAssignmentService
         var assignment = await _dailyAssignmentDal.GetAsync(a => a.Id == dto.Id);
         if (assignment == null || !await _accessScope.CanAccessStudentAsync(assignment.StudentId))
             return new ErrorResult("Görev bulunamadı.", ResultErrorType.NotFound);
-        if (assignment.Status != "sent_to_parent") return new ErrorResult("Bu görev şu an veli onayında değil.");
+        if (assignment.Status != AssignmentStatus.SentToParent) return new ErrorResult("Bu görev şu an veli onayında değil.");
 
         assignment.CompletedAtHome = JsonSerializer.Serialize(dto.CompletedTaskIds);
         if (!string.IsNullOrEmpty(dto.ParentNote))
             assignment.ParentNote = dto.ParentNote;
 
-        assignment.Status = "completed";
+        assignment.Status = AssignmentStatus.Completed;
         assignment.UpdatedAt = DateTime.UtcNow;
 
         await _dailyAssignmentDal.UpdateAsync(assignment);

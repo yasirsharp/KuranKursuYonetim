@@ -18,8 +18,8 @@ public class Lesson : BaseEntity, ITenantEntity
     public int JuzNumber { get; set; }
     public int PageNumber { get; set; } // O gün okuduğu spesifik sayfa
     
-    public string Performance { get; set; } = "İyi"; // Mükemmel, Çok İyi, İyi, Orta, Zayıf
+    public string Performance { get; set; } = "iyi"; // PerformanceLevel: mukemmel, cok_iyi, iyi, orta, zayif
     public bool IsNewPage { get; set; } = true; // Yeni ezber mi, has/tekrar mı?
-    public string HomeworkStatus { get; set; } = "yapılmadı"; // yapıldı, eksik, yapılmadı
+    public string HomeworkStatus { get; set; } = "yapilmadi"; // HomeworkStatus: yapildi, eksik, yapilmadi, mazeretli
     public string? Notes { get; set; }
 }

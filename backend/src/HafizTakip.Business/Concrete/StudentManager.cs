@@ -1,3 +1,4 @@
+using HafizTakip.Core.Enums;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Business.ValidationRules.FluentValidation;
@@ -118,7 +119,7 @@ public class StudentManager : IStudentService
             FirstName = createStudentDto.FirstName,
             LastName = createStudentDto.LastName,
             IdentificationNumber = createStudentDto.IdentificationNumber,
-            Status = "active",
+            Status = StudentStatus.Active,
             CurrentPage = 0,
             CompletedPages = 0,
             IsHafiz = false
@@ -128,6 +129,7 @@ public class StudentManager : IStudentService
         return new SuccessResult("Öğrenci başarıyla eklendi.");
     }
 
+    [ValidationAspect(typeof(UpdateStudentValidator))]
     public async Task<IResult> UpdateAsync(UpdateStudentDto updateStudentDto)
     {
         var student = await _studentDal.GetAsync(x => x.Id == updateStudentDto.Id);

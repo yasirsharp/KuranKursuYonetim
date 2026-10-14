@@ -204,6 +204,7 @@ public class AttendanceManager : IAttendanceService
         return new SuccessResult("Toplu yoklama işlemi başarıyla tamamlandı.");
     }
 
+    [ValidationAspect(typeof(UpdateAttendanceValidator))]
     public async Task<IResult> UpdateAsync(AttendanceDto updateAttendanceDto)
     {
         var attendance = await _attendanceDal.GetAsync(a => a.Id == updateAttendanceDto.Id);

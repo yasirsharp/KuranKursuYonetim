@@ -7,8 +7,8 @@ public class CreateAnnouncementValidator : AbstractValidator<CreateAnnouncementD
 {
     public CreateAnnouncementValidator()
     {
-        RuleFor(a => a.Title).NotEmpty().WithMessage("Başlık zorunludur.");
-        RuleFor(a => a.Content).NotEmpty().WithMessage("İçerik zorunludur.");
-        RuleFor(a => a.TargetAudience).NotEmpty().WithMessage("Hedef kitle zorunludur.");
+        RuleFor(a => a.Title).NotEmpty().WithMessage("Başlık zorunludur.").MaximumLength(200);
+        RuleFor(a => a.Content).NotEmpty().WithMessage("İçerik zorunludur.").MaximumLength(10000);
+        RuleFor(a => a.TargetAudience).NotEmpty().WithMessage("Hedef kitle zorunludur.").MaximumLength(100);
     }
 }

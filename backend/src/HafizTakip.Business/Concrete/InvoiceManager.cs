@@ -1,3 +1,6 @@
+using HafizTakip.Core.Enums;
+using HafizTakip.Core.Aspects.Autofac.Validation;
+using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Core.Utilities.Results;
@@ -108,6 +111,7 @@ public class InvoiceManager : IInvoiceService
         return new SuccessDataResult<InvoiceDto>(dto, "Fatura getirildi.");
     }
 
+    [ValidationAspect(typeof(CreateInvoiceValidator))]
     public async Task<IResult> AddAsync(CreateInvoiceDto createInvoiceDto)
     {
         var tenant = await _tenantDal.GetAsync(t => t.Id == createInvoiceDto.TenantId);
@@ -123,20 +127,21 @@ public class InvoiceManager : IInvoiceService
             InvoiceNo = createInvoiceDto.InvoiceNo,
             Amount = createInvoiceDto.Amount,
             DueDate = createInvoiceDto.DueDate.Date,
-            Status = "draft"
+            Status = InvoiceStatus.Draft
         };
 
         await _invoiceDal.AddAsync(invoice);
         return new SuccessResult("Fatura oluşturuldu.");
     }
 
+    [ValidationAspect(typeof(UpdateInvoiceStatusValidator))]
     public async Task<IResult> UpdateStatusAsync(UpdateInvoiceStatusDto updateInvoiceStatusDto)
     {
         var invoice = await _invoiceDal.GetAsync(i => i.Id == updateInvoiceStatusDto.Id);
         if (invoice == null) return new ErrorResult("Fatura bulunamadı.");
 
         invoice.Status = updateInvoiceStatusDto.Status;
-        if (updateInvoiceStatusDto.Status == "paid")
+        if (updateInvoiceStatusDto.Status == InvoiceStatus.Paid)
         {
             invoice.PaidDate = updateInvoiceStatusDto.PaidDate?.Date ?? DateTime.UtcNow.Date;
         }

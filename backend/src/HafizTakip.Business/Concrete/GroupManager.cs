@@ -92,6 +92,7 @@ public class GroupManager : IGroupService
         return new SuccessResult("Sınıf başarıyla oluşturuldu.");
     }
 
+    [ValidationAspect(typeof(UpdateGroupValidator))]
     public async Task<IResult> UpdateAsync(UpdateGroupDto updateGroupDto)
     {
         var group = await _groupDal.GetAsync(x => x.Id == updateGroupDto.Id);

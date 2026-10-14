@@ -65,17 +65,17 @@ VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-222
 
 -- 8. DERSLER (Geçmiş Sabak / Sabki Kayıtları)
 INSERT INTO lessons (id, tenant_id, student_id, teacher_id, lesson_date, sura_id, juz_number, page_number, performance, is_new_page, homework_status, notes)
-VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-1111-1111-1111-111111111111', '55555555-1111-1111-1111-111111111111', CURRENT_DATE - INTERVAL '1 day', 2, 1, 10, 'pekiyi', true, 'yapıldı', 'Maşallah, çok güzel ezberlemiş.');
+VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-1111-1111-1111-111111111111', '55555555-1111-1111-1111-111111111111', CURRENT_DATE - INTERVAL '1 day', 2, 1, 10, 'cok_iyi', true, 'yapildi', 'Maşallah, çok güzel ezberlemiş.');
 
 INSERT INTO lessons (id, tenant_id, student_id, teacher_id, lesson_date, sura_id, juz_number, page_number, performance, is_new_page, homework_status, notes)
-VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-1111-1111-1111-111111111111', '55555555-1111-1111-1111-111111111111', CURRENT_DATE - INTERVAL '2 days', 2, 1, 1, 'iyi', false, 'yapıldı', 'Tekrarlarını aksatmamalı.');
+VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-1111-1111-1111-111111111111', '55555555-1111-1111-1111-111111111111', CURRENT_DATE - INTERVAL '2 days', 2, 1, 1, 'iyi', false, 'yapildi', 'Tekrarlarını aksatmamalı.');
 
 -- 9. YOKLAMA (Devamsızlık Kayıtları)
 INSERT INTO attendances (id, tenant_id, student_id, date, status, notes)
-VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-1111-1111-1111-111111111111', CURRENT_DATE - INTERVAL '1 day', 'geldi', NULL);
+VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-1111-1111-1111-111111111111', CURRENT_DATE - INTERVAL '1 day', 'present', NULL);
 
 INSERT INTO attendances (id, tenant_id, student_id, date, status, notes)
-VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-2222-2222-2222-222222222222', CURRENT_DATE - INTERVAL '1 day', 'izinli', 'Hastaneye gittiği için izinli.');
+VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '77777777-2222-2222-2222-222222222222', CURRENT_DATE - INTERVAL '1 day', 'excused', 'Hastaneye gittiği için izinli.');
 
 -- 10. SINAVLAR VE SONUÇLAR
 INSERT INTO exams (id, tenant_id, group_id, exam_type, exam_date, title, description)

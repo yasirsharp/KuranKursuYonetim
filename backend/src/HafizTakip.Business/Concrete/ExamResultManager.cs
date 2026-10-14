@@ -1,3 +1,5 @@
+using HafizTakip.Core.Aspects.Autofac.Validation;
+using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Core.Utilities.Results;
@@ -131,6 +133,7 @@ public class ExamResultManager : IExamResultService
         return new SuccessDataResult<ExamResultDto>(dto, "Sınav sonucu getirildi.");
     }
 
+    [ValidationAspect(typeof(CreateExamResultValidator))]
     public async Task<IResult> AddAsync(CreateExamResultDto createExamResultDto)
     {
         var referenceError = await _references.EnsureExamAsync(createExamResultDto.ExamId)
@@ -154,6 +157,7 @@ public class ExamResultManager : IExamResultService
         return new SuccessResult("Sınav sonucu eklendi.");
     }
 
+    [ValidationAspect(typeof(UpdateExamResultValidator))]
     public async Task<IResult> UpdateAsync(UpdateExamResultDto updateExamResultDto)
     {
         var result = await _examResultDal.GetAsync(r => r.Id == updateExamResultDto.Id);

@@ -26,7 +26,7 @@ export default function LessonFormPage() {
   const [cuzNo, setCuzNo] = useState('');
   const [pageNo, setPageNo] = useState('');
   
-  const [performance, setPerformance] = useState('iyi'); // pekiyi, iyi, hasne, zayif
+  const [performance, setPerformance] = useState('iyi'); // mukemmel, cok_iyi, iyi, orta, zayif (backend PerformanceLevel)
   const [homeworkStatus, setHomeworkStatus] = useState('yapildi'); // yapildi, yapilmadi
   const [teacherNotes, setTeacherNotes] = useState('');
 
@@ -199,9 +199,10 @@ export default function LessonFormPage() {
             <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: 'var(--color-muted)' }}>Performans</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
-                { val: 'pekiyi', label: 'Pekiyi', color: 'var(--color-green)' },
-                { val: 'iyi', label: 'İyi', color: 'var(--color-blue)' },
-                { val: 'hasne', label: 'Hasne', color: 'var(--color-gold)' },
+                { val: 'mukemmel', label: 'Mükemmel', color: 'var(--color-green)' },
+                { val: 'cok_iyi', label: 'Çok İyi', color: 'var(--color-blue)' },
+                { val: 'iyi', label: 'İyi', color: 'var(--color-purple)' },
+                { val: 'orta', label: 'Orta', color: 'var(--color-gold)' },
                 { val: 'zayif', label: 'Zayıf', color: 'var(--color-red)' }
               ].map(opt => (
                 <button

@@ -1,3 +1,5 @@
+using HafizTakip.Core.Aspects.Autofac.Validation;
+using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Results;
 using HafizTakip.DataAccess.Abstract;
@@ -70,6 +72,7 @@ public class StudentParentManager : IStudentParentService
         return new SuccessDataResult<List<StudentParentDto>>(dtoList);
     }
 
+    [ValidationAspect(typeof(CreateStudentParentValidator))]
     public async Task<IResult> AddAsync(CreateStudentParentDto dto)
     {
         var referenceError = await _references.EnsureStudentAsync(dto.StudentId)

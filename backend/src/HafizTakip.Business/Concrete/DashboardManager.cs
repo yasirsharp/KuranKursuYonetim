@@ -1,3 +1,4 @@
+using HafizTakip.Core.Enums;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Results;
 using HafizTakip.DataAccess.Abstract;
@@ -31,12 +32,12 @@ public class DashboardManager : IDashboardService
     {
         var allStudents = await _studentDal.GetListAsync();
         var totalStudents = allStudents.Count;
-        var activeStudents = allStudents.Count(s => s.Status == "active");
+        var activeStudents = allStudents.Count(s => s.Status == StudentStatus.Active);
         var hafizCount = allStudents.Count(s => s.IsHafiz);
         var averageCompletedPages = totalStudents > 0 ? allStudents.Average(s => (double)s.CompletedPages) : 0.0;
 
         var allUsers = await _userDal.GetListAsync();
-        var totalTeachers = allUsers.Count(u => u.Role == "head_teacher" || u.Role == "assistant_teacher");
+        var totalTeachers = allUsers.Count(u => u.Role == UserRole.HeadTeacher || u.Role == UserRole.AssistantTeacher);
 
         var allGroups = await _groupDal.GetListAsync();
         var totalGroups = allGroups.Count;
@@ -48,7 +49,7 @@ public class DashboardManager : IDashboardService
 
         var allAttendances = await _attendanceDal.GetListAsync();
         var todayAttendances = allAttendances.Where(a => a.Date == today).ToList();
-        var presentCount = todayAttendances.Count(a => a.Status == "var");
+        var presentCount = todayAttendances.Count(a => a.Status == AttendanceStatus.Present);
         double attendanceRate = todayAttendances.Count > 0
             ? (double)presentCount / todayAttendances.Count * 100
             : 0;
@@ -93,7 +94,7 @@ public class DashboardManager : IDashboardService
         double attendanceRate = 0;
         if (allAttendances.Any())
         {
-            var present = allAttendances.Count(a => a.Status == "var");
+            var present = allAttendances.Count(a => a.Status == AttendanceStatus.Present);
             attendanceRate = (double)present / allAttendances.Count * 100;
         }
 
@@ -128,8 +129,8 @@ public class DashboardManager : IDashboardService
         var allAttendances = await _attendanceDal.GetListAsync(a => a.Date == today);
         var todayAttendances = allAttendances.Where(a => studentIds.Contains(a.StudentId)).ToList();
 
-        var todayPresent = todayAttendances.Count(a => a.Status == "var");
-        var todayAbsent = todayAttendances.Count(a => a.Status == "yok");
+        var todayPresent = todayAttendances.Count(a => a.Status == AttendanceStatus.Present);
+        var todayAbsent = todayAttendances.Count(a => a.Status == AttendanceStatus.Absent);
 
         var overview = new DashboardGroupOverviewDto
         {

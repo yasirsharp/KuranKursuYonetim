@@ -148,9 +148,9 @@ CREATE TABLE IF NOT EXISTS lessons (
     sura_id INT NOT NULL,
     juz_number INT NOT NULL,
     page_number INT NOT NULL,
-    performance VARCHAR(50) NOT NULL DEFAULT 'İyi',
+    performance VARCHAR(50) NOT NULL DEFAULT 'iyi',
     is_new_page BOOLEAN NOT NULL DEFAULT true,
-    homework_status VARCHAR(50) NOT NULL DEFAULT 'yapılmadı',
+    homework_status VARCHAR(50) NOT NULL DEFAULT 'yapilmadi',
     notes TEXT,
     
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

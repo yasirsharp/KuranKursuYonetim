@@ -1,3 +1,6 @@
+using HafizTakip.Core.Enums;
+using HafizTakip.Core.Aspects.Autofac.Validation;
+using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Core.DataAccess;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
@@ -55,7 +58,7 @@ public class SubscriptionManager : ISubscriptionService
 
     public async Task<IDataResult<SubscriptionDto>> GetByTenantIdAsync(Guid tenantId)
     {
-        var subscription = await _subscriptionDal.GetAsync(s => s.TenantId == tenantId && s.Status == "active");
+        var subscription = await _subscriptionDal.GetAsync(s => s.TenantId == tenantId && s.Status == SubscriptionStatus.Active);
         if (subscription == null) return new ErrorDataResult<SubscriptionDto>("Aktif abonelik bulunamadı.");
 
         var tenant = await _tenantDal.GetAsync(t => t.Id == subscription.TenantId);
@@ -95,16 +98,17 @@ public class SubscriptionManager : ISubscriptionService
         return new SuccessDataResult<SubscriptionDto>(dto, "Abonelik getirildi.");
     }
 
+    [ValidationAspect(typeof(CreateSubscriptionValidator))]
     public async Task<IResult> AddAsync(CreateSubscriptionDto createSubscriptionDto)
     {
         var tenant = await _tenantDal.GetAsync(t => t.Id == createSubscriptionDto.TenantId);
         if (tenant == null) return new ErrorResult("Kurs bulunamadı.");
 
         // Eski aktif abonelikleri iptal et
-        var existingActive = await _subscriptionDal.GetListAsync(s => s.TenantId == createSubscriptionDto.TenantId && s.Status == "active");
+        var existingActive = await _subscriptionDal.GetListAsync(s => s.TenantId == createSubscriptionDto.TenantId && s.Status == SubscriptionStatus.Active);
         foreach (var existing in existingActive)
         {
-            existing.Status = "cancelled";
+            existing.Status = SubscriptionStatus.Cancelled;
             _subscriptionDal.Update(existing);
         }
 
@@ -114,7 +118,7 @@ public class SubscriptionManager : ISubscriptionService
             PlanName = createSubscriptionDto.PlanName,
             StartDate = createSubscriptionDto.StartDate.Date,
             EndDate = createSubscriptionDto.EndDate.Date,
-            Status = "active"
+            Status = SubscriptionStatus.Active
         };
 
         _subscriptionDal.Add(subscription);
@@ -124,6 +128,7 @@ public class SubscriptionManager : ISubscriptionService
         return new SuccessResult("Abonelik oluşturuldu.");
     }
 
+    [ValidationAspect(typeof(UpdateSubscriptionValidator))]
     public async Task<IResult> UpdateAsync(UpdateSubscriptionDto updateSubscriptionDto)
     {
         var subscription = await _subscriptionDal.GetAsync(s => s.Id == updateSubscriptionDto.Id);

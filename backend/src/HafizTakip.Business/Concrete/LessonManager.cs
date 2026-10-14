@@ -1,3 +1,4 @@
+using HafizTakip.Core.Enums;
 using HafizTakip.Core.DataAccess;
 using System;
 using System.Collections.Generic;
@@ -205,7 +206,7 @@ public class LessonManager : ILessonService
             if (student.CompletedPages >= 604)
             {
                 student.IsHafiz = true;
-                student.Status = "graduated";
+                student.Status = StudentStatus.Graduated;
             }
 
             _studentDal.Update(student);
@@ -218,6 +219,7 @@ public class LessonManager : ILessonService
         return new SuccessResult("Ders başarıyla kaydedildi.");
     }
 
+    [ValidationAspect(typeof(UpdateLessonValidator))]
     public async Task<IResult> UpdateAsync(UpdateLessonDto updateLessonDto)
     {
         var lesson = await _lessonDal.GetAsync(x => x.Id == updateLessonDto.Id);

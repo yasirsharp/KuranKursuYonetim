@@ -1,3 +1,5 @@
+using HafizTakip.Core.Aspects.Autofac.Validation;
+using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Core.Utilities.Results;
@@ -132,6 +134,7 @@ public class EtutNoteManager : IEtutNoteService
         return new SuccessDataResult<EtutNoteDto>(dto, "Etüt notu getirildi.");
     }
 
+    [ValidationAspect(typeof(CreateEtutNoteValidator))]
     public async Task<IResult> AddAsync(CreateEtutNoteDto createEtutNoteDto)
     {
         var student = await _studentDal.GetAsync(s => s.Id == createEtutNoteDto.StudentId);
@@ -158,6 +161,7 @@ public class EtutNoteManager : IEtutNoteService
         return new SuccessResult("Etüt notu eklendi.");
     }
 
+    [ValidationAspect(typeof(UpdateEtutNoteValidator))]
     public async Task<IResult> UpdateAsync(UpdateEtutNoteDto updateEtutNoteDto)
     {
         var note = await _etutNoteDal.GetAsync(n => n.Id == updateEtutNoteDto.Id);

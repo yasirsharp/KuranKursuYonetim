@@ -1,3 +1,5 @@
+using HafizTakip.Core.Aspects.Autofac.Validation;
+using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Core.Utilities.Results;
@@ -81,6 +83,7 @@ public class AnnouncementManager : IAnnouncementService
         return new SuccessDataResult<AnnouncementDto>(dto, "Duyuru getirildi.");
     }
 
+    [ValidationAspect(typeof(CreateAnnouncementValidator))]
     public async Task<IResult> AddAsync(CreateAnnouncementDto createAnnouncementDto)
     {
         var announcement = new Announcement
@@ -98,6 +101,7 @@ public class AnnouncementManager : IAnnouncementService
         return new SuccessResult("Duyuru yayınlandı.");
     }
 
+    [ValidationAspect(typeof(UpdateAnnouncementValidator))]
     public async Task<IResult> UpdateAsync(UpdateAnnouncementDto updateAnnouncementDto)
     {
         var announcement = await _announcementDal.GetAsync(a => a.Id == updateAnnouncementDto.Id);

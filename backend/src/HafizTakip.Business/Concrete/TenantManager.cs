@@ -1,3 +1,4 @@
+using HafizTakip.Core.Enums;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Business.ValidationRules.FluentValidation;
@@ -75,13 +76,14 @@ public class TenantManager : ITenantService
             Slug = createTenantDto.Slug,
             ContactEmail = createTenantDto.ContactEmail,
             ContactPhone = createTenantDto.ContactPhone,
-            Status = "trial"
+            Status = TenantStatus.Trial
         };
 
         await _tenantDal.AddAsync(tenant);
         return new SuccessResult("Kurs başarıyla eklendi.");
     }
 
+    [ValidationAspect(typeof(UpdateTenantValidator))]
     public async Task<IResult> UpdateAsync(UpdateTenantDto updateTenantDto)
     {
         var tenant = await _tenantDal.GetAsync(x => x.Id == updateTenantDto.Id);

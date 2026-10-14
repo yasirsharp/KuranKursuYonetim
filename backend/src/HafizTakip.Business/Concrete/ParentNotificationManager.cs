@@ -1,3 +1,5 @@
+using HafizTakip.Core.Aspects.Autofac.Validation;
+using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Core.Utilities.Results;
@@ -120,6 +122,7 @@ public class ParentNotificationManager : IParentNotificationService
         return new SuccessDataResult<ParentNotificationDto>(dto, "Bildirim getirildi.");
     }
 
+    [ValidationAspect(typeof(CreateParentNotificationValidator))]
     public async Task<IResult> AddAsync(CreateParentNotificationDto createParentNotificationDto)
     {
         var referenceError = await _references.EnsureStudentAsync(createParentNotificationDto.StudentId);

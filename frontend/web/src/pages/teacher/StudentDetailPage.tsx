@@ -235,12 +235,15 @@ export default function StudentDetailPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {lessons.map(lesson => {
                 const date = new Date(lesson.lessonDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-                const statusColors: Record<string, string> = {
-                  pekiyi: 'var(--color-green)',
-                  iyi: 'var(--color-blue)',
-                  hasne: 'var(--color-gold)',
-                  zayif: 'var(--color-red)',
+                // Backend PerformanceLevel kodları
+                const performanceStyles: Record<string, { label: string; color: string }> = {
+                  mukemmel: { label: 'Mükemmel', color: 'var(--color-green)' },
+                  cok_iyi: { label: 'Çok İyi', color: 'var(--color-blue)' },
+                  iyi: { label: 'İyi', color: 'var(--color-purple)' },
+                  orta: { label: 'Orta', color: 'var(--color-gold)' },
+                  zayif: { label: 'Zayıf', color: 'var(--color-red)' },
                 };
+                const performance = performanceStyles[lesson.performance];
                 return (
                   <div key={lesson.id} className="glass-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{
@@ -262,10 +265,10 @@ export default function StudentDetailPage() {
                         )}
                         <span style={{
                           fontSize: 10, padding: '2px 8px', borderRadius: 6, fontWeight: 700,
-                          color: statusColors[lesson.homeworkStatus] || 'var(--color-muted)',
-                          background: `${statusColors[lesson.homeworkStatus] || 'var(--color-border)'}15`,
+                          color: performance?.color || 'var(--color-muted)',
+                          border: `1px solid ${performance?.color || 'var(--color-border)'}`,
                         }}>
-                          {lesson.homeworkStatus}
+                          {performance?.label || lesson.performance}
                         </span>
                       </div>
                     </div>
