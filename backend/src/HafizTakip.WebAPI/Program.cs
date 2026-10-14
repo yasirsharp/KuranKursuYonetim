@@ -6,6 +6,8 @@ using HafizTakip.Core.Extensions;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Security.Encryption;
 using HafizTakip.Core.Utilities.Security.Jwt;
+using HafizTakip.Core.Utilities.Security.Otp;
+using HafizTakip.Core.Utilities.Sms;
 using HafizTakip.DataAccess.Concrete.EntityFramework;
 using HafizTakip.WebAPI.Middlewares;
 using HafizTakip.WebAPI.Security;
@@ -32,6 +34,14 @@ if (tokenErrors.Count > 0)
     throw new InvalidOperationException(string.Join(Environment.NewLine, tokenErrors));
 if (!builder.Environment.IsDevelopment() && tokenOptions.SecurityKey.StartsWith("DEV-ONLY-"))
     throw new InvalidOperationException("Geliştirme JWT anahtarı geliştirme dışı bir ortamda kullanılamaz.");
+
+var otpOptions = builder.Configuration.GetSection("Otp").Get<OtpOptions>() ?? new OtpOptions();
+if (!builder.Environment.IsDevelopment() && !string.IsNullOrEmpty(otpOptions.FixedCode))
+    throw new InvalidOperationException("Otp:FixedCode yalnızca geliştirme ortamında kullanılabilir.");
+
+var smsSettings = builder.Configuration.GetSection("Sms").Get<SmsSettings>() ?? new SmsSettings();
+if (!builder.Environment.IsDevelopment() && smsSettings.Provider != SmsSettings.NetGsmProvider)
+    throw new InvalidOperationException("Geliştirme dışı ortamda Sms:Provider 'netgsm' olmalıdır.");
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 
@@ -79,6 +89,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// Kimlik doğrulama ayarları ve SMS sağlayıcısı
+builder.Services.AddSingleton(tokenOptions);
+builder.Services.AddSingleton(otpOptions);
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.Configure<SmsSettings>(builder.Configuration.GetSection("Sms"));
+if (smsSettings.Provider == SmsSettings.NetGsmProvider)
+    builder.Services.AddHttpClient<ISmsSender, NetGsmSmsSender>(client => client.Timeout = TimeSpan.FromSeconds(15));
+else
+    builder.Services.AddSingleton<ISmsSender, ConsoleSmsSender>();
+
+builder.Services.AddHafizTakipRateLimiting(builder.Configuration);
+
 // Core Dependencies
 builder.Services.AddDependencyResolvers(new ICoreModule[]
 {
@@ -118,6 +140,8 @@ if (app.Environment.IsDevelopment())
 app.ConfigureCustomExceptionMiddleware();
 
 app.UseCors("Frontend");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 

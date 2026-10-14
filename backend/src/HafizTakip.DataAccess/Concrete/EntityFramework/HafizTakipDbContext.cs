@@ -35,6 +35,7 @@ public class HafizTakipDbContext : DbContext
     public DbSet<ParentNotification> ParentNotifications { get; set; }
     public DbSet<DailyAssignment> DailyAssignments { get; set; }
     public DbSet<StudentParent> StudentParents { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,6 +64,7 @@ public class HafizTakipDbContext : DbContext
         modelBuilder.Entity<ParentNotification>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<DailyAssignment>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<StudentParent>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == _tenantContext.TenantId);
         
         // Platform entity'leri sadece soft-delete filtresine takılır
         modelBuilder.Entity<Tenant>().HasQueryFilter(e => !e.IsDeleted);

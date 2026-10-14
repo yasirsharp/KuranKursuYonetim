@@ -1,15 +1,17 @@
 using HafizTakip.Business.Abstract;
-using HafizTakip.Core.Utilities.IoC;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+using HafizTakip.Entities.Dtos;
+using HafizTakip.WebAPI.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace HafizTakip.WebAPI.Controllers;
 
 [AllowAnonymous]
 [Route("api/[controller]")]
 [ApiController]
-public class AuthController : ControllerBase
+[EnableRateLimiting(RateLimitPolicies.Auth)]
+public class AuthController : ApiControllerBase
 {
     private readonly IAuthService _authService;
 
@@ -19,16 +21,26 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("send-otp")]
-    public async Task<IActionResult> SendOtp([FromBody] HafizTakip.Entities.Dtos.SendOtpDto sendOtpDto)
+    public async Task<IActionResult> SendOtp([FromBody] SendOtpDto sendOtpDto)
     {
-        await _authService.SendOtpAsync(sendOtpDto);
-        return Ok(new { success = true, message = "OTP kodu gönderildi." });
+        return HandleResult(await _authService.SendOtpAsync(sendOtpDto));
     }
 
     [HttpPost("verify-otp")]
-    public async Task<IActionResult> VerifyOtp([FromBody] HafizTakip.Entities.Dtos.VerifyOtpDto verifyOtpDto)
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpDto verifyOtpDto)
     {
-        var result = await _authService.VerifyOtpAsync(verifyOtpDto);
-        return Ok(new { success = true, message = "Giriş başarılı.", data = result });
+        return HandleResult(await _authService.VerifyOtpAsync(verifyOtpDto));
+    }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
+    {
+        return HandleResult(await _authService.RefreshAsync(request));
+    }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto request)
+    {
+        return HandleResult(await _authService.LogoutAsync(request));
     }
 }

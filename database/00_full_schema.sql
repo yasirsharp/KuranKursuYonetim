@@ -297,6 +297,22 @@ CREATE TABLE IF NOT EXISTS daily_assignments (
     deleted_at TIMESTAMPTZ
 );
 
+-- Oturum yenileme token'ları (yalnızca SHA-256 özeti saklanır) — migrations/002
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(128) NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    replaced_by_token_hash VARCHAR(128),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ,
+    is_deleted BOOLEAN NOT NULL DEFAULT false,
+    deleted_at TIMESTAMPTZ
+);
+
 -- =============================================================
 -- 3. INDEKSLER
 -- =============================================================
@@ -325,5 +341,8 @@ CREATE INDEX IX_exam_results_exam_id ON exam_results(exam_id);
 CREATE INDEX IX_exam_results_student_id ON exam_results(student_id);
 CREATE INDEX IX_announcements_tenant_id ON announcements(tenant_id);
 CREATE INDEX IX_announcements_author_id ON announcements(author_id);
+CREATE UNIQUE INDEX UQ_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+CREATE INDEX IX_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IX_refresh_tokens_tenant_id ON refresh_tokens(tenant_id);
 
 
