@@ -21,25 +21,20 @@ public class TenantManager : ITenantService
 
     public async Task<IDataResult<PagedResult<TenantDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var tenants = await _tenantDal.GetListAsync();
-        
-        var totalCount = tenants.Count;
-        var pagedList = tenants
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = pagedList.Select(t => new TenantDto
-        {
-            Id = t.Id,
-            Name = t.Name,
-            Slug = t.Slug,
-            Status = t.Status,
-            ContactEmail = t.ContactEmail,
-            ContactPhone = t.ContactPhone
-        }).ToList();
-        
-        var result = new PagedResult<TenantDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _tenantDal.GetPagedAsync(
+            filter: null,
+            orderBy: q => q.OrderBy(t => t.Name),
+            selector: t => new TenantDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Slug = t.Slug,
+                Status = t.Status,
+                ContactEmail = t.ContactEmail,
+                ContactPhone = t.ContactPhone,
+                IsActive = t.IsActive
+            },
+            paging: paginationParams);
         return new SuccessDataResult<PagedResult<TenantDto>>(result, "Kurslar listelendi.");
     }
 

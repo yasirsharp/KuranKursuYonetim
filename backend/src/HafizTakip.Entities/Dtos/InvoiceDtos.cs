@@ -30,3 +30,8 @@ public class UpdateInvoiceStatusDto : IDto
     public string Status { get; set; } = string.Empty;
     public DateTime? PaidDate { get; set; }
 }
+
+public class InvoiceFilter : IDto
+{
+    public Guid? TenantId { get; set; }
+}

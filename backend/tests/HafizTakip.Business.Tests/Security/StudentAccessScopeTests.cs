@@ -87,8 +87,9 @@ public class StudentAccessScopeTests
     public async Task ParentReadingSingleAttendanceOfOtherChild_ShouldLookNotFound()
     {
         var attendanceDal = new Mock<IAttendanceDal>();
-        attendanceDal.Setup(d => d.GetAsync(It.IsAny<Expression<Func<HafizTakip.Entities.Concrete.Attendance, bool>>>()))
-            .ReturnsAsync(new HafizTakip.Entities.Concrete.Attendance { Id = Guid.NewGuid(), StudentId = _otherChild });
+        // Kayıt var ama başka bir öğrenciye ait: varlığı sızdırılmamalı
+        attendanceDal.Setup(d => d.GetAttendanceDetailAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(new AttendanceDto { Id = Guid.NewGuid(), StudentId = _otherChild });
         var manager = new AttendanceManager(attendanceDal.Object, new Mock<IStudentDal>().Object,
             new Mock<ITenantContext>().Object, new Mock<HafizTakip.Business.Abstract.ITenantReferenceValidator>().Object,
             AccessScopes.Only(_ownChild),

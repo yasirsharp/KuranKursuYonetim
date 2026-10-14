@@ -34,39 +34,14 @@ public class AttendanceManager : IAttendanceService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IDataResult<PagedResult<AttendanceDto>>> GetAllAsync(PaginationParams paginationParams)
+    public async Task<IDataResult<PagedResult<AttendanceDto>>> GetAllAsync(AttendanceFilter filter, PaginationParams paginationParams)
     {
-        // TODO: Veritabanında sayfala ve öğrenci adlarını toplu/projection sorgusuyla getir; mevcut akış tüm kayıtları yükleyip N+1 sorgu çalıştırıyor.
+        if (filter.StudentId is { } studentId && !await _accessScope.CanAccessStudentAsync(studentId))
+            return new ErrorDataResult<PagedResult<AttendanceDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
+
         var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
-        var attendances = scopeIds == null
-            ? await _attendanceDal.GetListAsync()
-            : await _attendanceDal.GetListAsync(a => scopeIds.Contains(a.StudentId));
-        
-        var totalCount = attendances.Count;
-        var pagedList = attendances
-            .OrderByDescending(a => a.Date)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<AttendanceDto>();
-        foreach (var a in pagedList)
-        {
-            var student = await _studentDal.GetAsync(s => s.Id == a.StudentId);
-            dtoList.Add(new AttendanceDto
-            {
-                Id = a.Id,
-                TenantId = a.TenantId,
-                StudentId = a.StudentId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-                Date = a.Date,
-                Status = a.Status,
-                Notes = a.Notes
-            });
-        }
-
-        var result = new PagedResult<AttendanceDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<AttendanceDto>>(result, "Yoklama listesi getirildi.");
+        var result = await _attendanceDal.GetAttendanceDetailsPagedAsync(filter, scopeIds, paginationParams);
+        return new SuccessDataResult<PagedResult<AttendanceDto>>(result, "Yoklama kayıtları listelendi.");
     }
 
     public async Task<IDataResult<PagedResult<AttendanceDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
@@ -74,55 +49,15 @@ public class AttendanceManager : IAttendanceService
         if (!await _accessScope.CanAccessStudentAsync(studentId))
             return new ErrorDataResult<PagedResult<AttendanceDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
 
-        var attendances = await _attendanceDal.GetListAsync(a => a.StudentId == studentId);
-        
-        var totalCount = attendances.Count;
-        var pagedList = attendances
-            .OrderByDescending(a => a.Date)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<AttendanceDto>();
-        var student = await _studentDal.GetAsync(s => s.Id == studentId);
-        var studentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor";
-
-        foreach (var a in pagedList)
-        {
-            dtoList.Add(new AttendanceDto
-            {
-                Id = a.Id,
-                TenantId = a.TenantId,
-                StudentId = a.StudentId,
-                StudentName = studentName,
-                Date = a.Date,
-                Status = a.Status,
-                Notes = a.Notes
-            });
-        }
-
-        var result = new PagedResult<AttendanceDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<AttendanceDto>>(result, "Öğrenci yoklama listesi getirildi.");
+        var result = await _attendanceDal.GetAttendanceDetailsPagedAsync(new AttendanceFilter { StudentId = studentId }, null, paginationParams);
+        return new SuccessDataResult<PagedResult<AttendanceDto>>(result, "Öğrencinin yoklama geçmişi listelendi.");
     }
 
     public async Task<IDataResult<AttendanceDto>> GetByIdAsync(Guid id)
     {
-        var a = await _attendanceDal.GetAsync(x => x.Id == id);
-        if (a == null || !await _accessScope.CanAccessStudentAsync(a.StudentId))
+        var dto = await _attendanceDal.GetAttendanceDetailAsync(id);
+        if (dto == null || !await _accessScope.CanAccessStudentAsync(dto.StudentId))
             return new ErrorDataResult<AttendanceDto>("Yoklama kaydı bulunamadı.", ResultErrorType.NotFound);
-
-        var student = await _studentDal.GetAsync(s => s.Id == a.StudentId);
-        
-        var dto = new AttendanceDto
-        {
-            Id = a.Id,
-            TenantId = a.TenantId,
-            StudentId = a.StudentId,
-            StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-            Date = a.Date,
-            Status = a.Status,
-            Notes = a.Notes
-        };
 
         return new SuccessDataResult<AttendanceDto>(dto, "Yoklama detayı getirildi.");
     }

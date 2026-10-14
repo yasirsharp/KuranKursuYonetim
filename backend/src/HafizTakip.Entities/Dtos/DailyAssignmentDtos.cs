@@ -55,3 +55,13 @@ public class CompleteHomeAssignmentDto : IDto
     public List<string> CompletedTaskIds { get; set; } = new();
     public string? ParentNote { get; set; }
 }
+
+public class DailyAssignmentFilter : IDto
+{
+    public Guid? StudentId { get; set; }
+
+    /// <summary>Doluysa yalnızca o günün görevleri.</summary>
+    public DateTime? Date { get; set; }
+    public bool? IsBoarderToday { get; set; }
+    public string? Status { get; set; }
+}

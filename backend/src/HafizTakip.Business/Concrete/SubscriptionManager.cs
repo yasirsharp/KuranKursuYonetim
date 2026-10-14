@@ -26,76 +26,24 @@ public class SubscriptionManager : ISubscriptionService
 
     public async Task<IDataResult<PagedResult<SubscriptionDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var subscriptions = await _subscriptionDal.GetListAsync();
-        
-        var totalCount = subscriptions.Count;
-        var pagedList = subscriptions
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<SubscriptionDto>();
-        foreach (var subscription in pagedList)
-        {
-            var tenant = await _tenantDal.GetAsync(t => t.Id == subscription.TenantId);
-            
-            dtoList.Add(new SubscriptionDto
-            {
-                Id = subscription.Id,
-                TenantId = subscription.TenantId,
-                TenantName = tenant != null ? tenant.Name : "Bilinmiyor",
-                PlanName = subscription.PlanName,
-                StartDate = subscription.StartDate,
-                EndDate = subscription.EndDate,
-                Status = subscription.Status
-            });
-        }
-
-        var result = new PagedResult<SubscriptionDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _subscriptionDal.GetSubscriptionDetailsPagedAsync(new SubscriptionFilter(), paginationParams);
         return new SuccessDataResult<PagedResult<SubscriptionDto>>(result, "Abonelikler listelendi.");
     }
 
     public async Task<IDataResult<SubscriptionDto>> GetByTenantIdAsync(Guid tenantId)
     {
-        var subscription = await _subscriptionDal.GetAsync(s => s.TenantId == tenantId && s.Status == SubscriptionStatus.Active);
-        if (subscription == null) return new ErrorDataResult<SubscriptionDto>("Aktif abonelik bulunamadı.");
-
-        var tenant = await _tenantDal.GetAsync(t => t.Id == subscription.TenantId);
-
-        var dto = new SubscriptionDto
-        {
-            Id = subscription.Id,
-            TenantId = subscription.TenantId,
-            TenantName = tenant != null ? tenant.Name : "Bilinmiyor",
-            PlanName = subscription.PlanName,
-            StartDate = subscription.StartDate,
-            EndDate = subscription.EndDate,
-            Status = subscription.Status
-        };
-
-        return new SuccessDataResult<SubscriptionDto>(dto, "Abonelik getirildi.");
+        var dto = await _subscriptionDal.GetActiveSubscriptionDetailAsync(tenantId);
+        return dto == null
+            ? new ErrorDataResult<SubscriptionDto>("Kursa ait aktif abonelik bulunamadı.", ResultErrorType.NotFound)
+            : new SuccessDataResult<SubscriptionDto>(dto, "Aktif abonelik getirildi.");
     }
 
     public async Task<IDataResult<SubscriptionDto>> GetByIdAsync(Guid id)
     {
-        var subscription = await _subscriptionDal.GetAsync(s => s.Id == id);
-        if (subscription == null) return new ErrorDataResult<SubscriptionDto>("Abonelik bulunamadı.");
-
-        var tenant = await _tenantDal.GetAsync(t => t.Id == subscription.TenantId);
-
-        var dto = new SubscriptionDto
-        {
-            Id = subscription.Id,
-            TenantId = subscription.TenantId,
-            TenantName = tenant != null ? tenant.Name : "Bilinmiyor",
-            PlanName = subscription.PlanName,
-            StartDate = subscription.StartDate,
-            EndDate = subscription.EndDate,
-            Status = subscription.Status
-        };
-
-        return new SuccessDataResult<SubscriptionDto>(dto, "Abonelik getirildi.");
+        var dto = await _subscriptionDal.GetSubscriptionDetailAsync(id);
+        return dto == null
+            ? new ErrorDataResult<SubscriptionDto>("Abonelik bulunamadı.", ResultErrorType.NotFound)
+            : new SuccessDataResult<SubscriptionDto>(dto, "Abonelik getirildi.");
     }
 
     [ValidationAspect(typeof(CreateSubscriptionValidator))]

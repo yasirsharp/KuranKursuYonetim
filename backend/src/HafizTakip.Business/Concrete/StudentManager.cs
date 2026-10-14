@@ -28,79 +28,22 @@ public class StudentManager : IStudentService
         _accessScope = accessScope;
     }
 
-    public async Task<IDataResult<PagedResult<StudentDto>>> GetAllAsync(PaginationParams paginationParams)
+    public async Task<IDataResult<PagedResult<StudentDto>>> GetAllAsync(StudentFilter filter, PaginationParams paginationParams)
     {
-        // TODO: Sayfalama ve grup adlarını veritabanı sorgusuna taşı; mevcut akış tüm öğrencileri belleğe alıp grup başına ek sorgu çalıştırıyor.
         var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
-        var students = scopeIds == null
-            ? await _studentDal.GetListAsync()
-            : await _studentDal.GetListAsync(s => scopeIds.Contains(s.Id));
-        
-        var totalCount = students.Count;
-        var pagedList = students
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<StudentDto>();
-        foreach (var s in pagedList)
-        {
-            string groupName = "Sınıfsız";
-            if (s.GroupId.HasValue)
-            {
-                var group = await _groupDal.GetAsync(g => g.Id == s.GroupId.Value);
-                if (group != null) groupName = group.Name;
-            }
-
-            dtoList.Add(new StudentDto
-            {
-                Id = s.Id,
-                TenantId = s.TenantId,
-                GroupId = s.GroupId,
-                GroupName = groupName,
-                FirstName = s.FirstName,
-                LastName = s.LastName,
-                IdentificationNumber = s.IdentificationNumber,
-                CurrentPage = s.CurrentPage,
-                CompletedPages = s.CompletedPages,
-                IsHafiz = s.IsHafiz,
-                Status = s.Status
-            });
-        }
-
-        var result = new PagedResult<StudentDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _studentDal.GetStudentDetailsPagedAsync(filter, scopeIds, paginationParams);
         return new SuccessDataResult<PagedResult<StudentDto>>(result, "Öğrenciler listelendi.");
     }
 
     public async Task<IDataResult<StudentDto>> GetByIdAsync(Guid id)
     {
-        var s = await _studentDal.GetAsync(x => x.Id == id);
-        if (s == null || !await _accessScope.CanAccessStudentAsync(s.Id))
+        if (!await _accessScope.CanAccessStudentAsync(id))
             return new ErrorDataResult<StudentDto>("Öğrenci bulunamadı.", ResultErrorType.NotFound);
 
-        string groupName = "Sınıfsız";
-        if (s.GroupId.HasValue)
-        {
-            var group = await _groupDal.GetAsync(g => g.Id == s.GroupId.Value);
-            if (group != null) groupName = group.Name;
-        }
-
-        var dto = new StudentDto
-        {
-            Id = s.Id,
-            TenantId = s.TenantId,
-            GroupId = s.GroupId,
-            GroupName = groupName,
-            FirstName = s.FirstName,
-            LastName = s.LastName,
-            IdentificationNumber = s.IdentificationNumber,
-            CurrentPage = s.CurrentPage,
-            CompletedPages = s.CompletedPages,
-            IsHafiz = s.IsHafiz,
-            Status = s.Status
-        };
-
-        return new SuccessDataResult<StudentDto>(dto, "Öğrenci getirildi.");
+        var dto = await _studentDal.GetStudentDetailAsync(id);
+        return dto == null
+            ? new ErrorDataResult<StudentDto>("Öğrenci bulunamadı.", ResultErrorType.NotFound)
+            : new SuccessDataResult<StudentDto>(dto, "Öğrenci detayı getirildi.");
     }
 
     [ValidationAspect(typeof(CreateStudentValidator))]

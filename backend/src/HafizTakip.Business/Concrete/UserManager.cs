@@ -27,17 +27,20 @@ public class UserManager : IUserService
 
     public async Task<IDataResult<PagedResult<UserDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var users = await _userDal.GetListAsync();
-
-        var totalCount = users.Count;
-        var pagedList = users
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = pagedList.Select(ToDto).ToList();
-
-        var result = new PagedResult<UserDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _userDal.GetPagedAsync(
+            filter: null,
+            orderBy: q => q.OrderBy(u => u.FirstName).ThenBy(u => u.LastName),
+            selector: u => new UserDto
+            {
+                Id = u.Id,
+                TenantId = u.TenantId,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                PhoneNumber = u.PhoneNumber,
+                Email = u.Email,
+                Role = u.Role
+            },
+            paging: paginationParams);
         return new SuccessDataResult<PagedResult<UserDto>>(result, "Kullanıcılar listelendi.");
     }
 

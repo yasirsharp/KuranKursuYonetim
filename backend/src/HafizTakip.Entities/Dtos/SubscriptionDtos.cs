@@ -28,3 +28,8 @@ public class UpdateSubscriptionDto : IDto
     public DateTime EndDate { get; set; }
     public string Status { get; set; } = string.Empty;
 }
+
+public class SubscriptionFilter : IDto
+{
+    public Guid? TenantId { get; set; }
+}

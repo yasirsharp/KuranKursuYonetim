@@ -4,6 +4,7 @@ using HafizTakip.Business.Concrete;
 using HafizTakip.Core.DataAccess;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Requests;
+using HafizTakip.Core.Utilities.Results;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
@@ -165,47 +166,23 @@ public class AttendanceManagerTests
     }
 
     [Fact]
-    public async Task GetAllAsync_ShouldReturnPagedAttendanceListWithStudentNames()
+    public async Task GetAllAsync_ShouldDelegateFilterAndPagingToSingleDatabaseQuery()
     {
-        // Arrange
-        var studentId = Guid.NewGuid();
-        var student = new Entities.Concrete.Student
-        {
-            Id = studentId,
-            FirstName = "Ahmet",
-            LastName = "Yılmaz"
-        };
-
-        var attendanceList = new List<Entities.Concrete.Attendance>
-        {
-            new()
-            {
-                Id = Guid.NewGuid(),
-                TenantId = _testTenantId,
-                StudentId = studentId,
-                Date = DateTime.UtcNow,
-                Status = "present"
-            }
-        };
+        // Arrange: öğrenci adı birleştirmesi ve sayfalama DAL'daki tek sorguda yapılır (N+1 yok)
+        var filter = new AttendanceFilter { From = new DateTime(2026, 10, 1), To = new DateTime(2026, 10, 31) };
+        var pagination = new PaginationParams { Page = 1, PageSize = 10 };
+        var page = new PagedResult<AttendanceDto>(new List<AttendanceDto> { new() { StudentName = "Ahmet Yılmaz", Status = "present" } }, 1, 1, 10);
 
         _attendanceDalMock
-            .Setup(d => d.GetListAsync(null))
-            .ReturnsAsync(attendanceList);
-
-        _studentDalMock
-            .Setup(s => s.GetAsync(It.IsAny<Expression<Func<Entities.Concrete.Student, bool>>>()))
-            .ReturnsAsync(student);
-
-        var pagination = new PaginationParams { Page = 1, PageSize = 10 };
+            .Setup(d => d.GetAttendanceDetailsPagedAsync(filter, null, pagination))
+            .ReturnsAsync(page);
 
         // Act
-        var result = await _attendanceManager.GetAllAsync(pagination);
+        var result = await _attendanceManager.GetAllAsync(filter, pagination);
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Data.Should().NotBeNull();
-        result.Data.TotalCount.Should().Be(1);
-        result.Data.Data.Should().HaveCount(1);
-        result.Data.Data.First().StudentName.Should().Be("Ahmet Yılmaz");
+        result.Data.Should().BeSameAs(page);
+        _studentDalMock.Verify(s => s.GetAsync(It.IsAny<Expression<Func<Entities.Concrete.Student, bool>>>()), Times.Never);
     }
 }

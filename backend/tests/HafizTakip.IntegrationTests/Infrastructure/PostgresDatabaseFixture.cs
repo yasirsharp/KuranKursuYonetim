@@ -67,13 +67,25 @@ public sealed class PostgresDatabaseFixture : IAsyncLifetime
     /// <summary>Verilen kurs bağlamıyla yeni bir DbContext (uygulamadaki ayarlarla aynı).</summary>
     public HafizTakipDbContext CreateContext(Guid tenantId) => CreateContext(new TestTenantContext(tenantId));
 
-    public HafizTakipDbContext CreateContext(TestTenantContext tenantContext)
+    public HafizTakipDbContext CreateContext(TestTenantContext tenantContext, CommandCounter? commandCounter = null)
     {
-        var options = new DbContextOptionsBuilder<HafizTakipDbContext>()
+        var builder = new DbContextOptionsBuilder<HafizTakipDbContext>()
             .UseNpgsql(ConnectionString)
-            .UseSnakeCaseNamingConvention()
-            .Options;
-        return new HafizTakipDbContext(options, tenantContext);
+            .UseSnakeCaseNamingConvention();
+        if (commandCounter != null) builder.AddInterceptors(commandCounter);
+        return new HafizTakipDbContext(builder.Options, tenantContext);
+    }
+
+    /// <summary>Testler arası veri çakışmasını önlemek için A kursunda yeni bir öğrenci oluşturur.</summary>
+    public async Task<Guid> CreateStudentAsync(string firstName = "Test", string lastName = "Öğrenci", Guid? groupId = null)
+    {
+        var id = Guid.NewGuid();
+        var group = groupId.HasValue ? $"'{groupId}'" : "NULL";
+        await ExecuteSqlAsync($"""
+            INSERT INTO students (id, tenant_id, group_id, first_name, last_name, identification_number)
+            VALUES ('{id}', '{TenantA}', {group}, '{firstName}', '{lastName}', '');
+            """);
+        return id;
     }
 
     public async Task ExecuteSqlAsync(string sql)

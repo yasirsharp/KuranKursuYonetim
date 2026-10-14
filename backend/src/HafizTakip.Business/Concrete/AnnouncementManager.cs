@@ -27,60 +27,16 @@ public class AnnouncementManager : IAnnouncementService
 
     public async Task<IDataResult<PagedResult<AnnouncementDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var announcements = await _announcementDal.GetListAsync();
-        
-        var totalCount = announcements.Count;
-        var pagedList = announcements
-            .OrderByDescending(x => x.IsPinned)
-            .ThenByDescending(x => x.PublishedAt ?? x.CreatedAt)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<AnnouncementDto>();
-        foreach (var announcement in pagedList)
-        {
-            var author = await _userDal.GetAsync(u => u.Id == announcement.AuthorId);
-            
-            dtoList.Add(new AnnouncementDto
-            {
-                Id = announcement.Id,
-                TenantId = announcement.TenantId,
-                AuthorId = announcement.AuthorId,
-                AuthorName = author != null ? $"{author.FirstName} {author.LastName}" : "Bilinmiyor",
-                Title = announcement.Title,
-                Content = announcement.Content,
-                TargetAudience = announcement.TargetAudience,
-                IsPinned = announcement.IsPinned,
-                PublishedAt = announcement.PublishedAt
-            });
-        }
-
-        var result = new PagedResult<AnnouncementDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _announcementDal.GetAnnouncementDetailsPagedAsync(paginationParams);
         return new SuccessDataResult<PagedResult<AnnouncementDto>>(result, "Duyurular listelendi.");
     }
 
     public async Task<IDataResult<AnnouncementDto>> GetByIdAsync(Guid id)
     {
-        var announcement = await _announcementDal.GetAsync(a => a.Id == id);
-        if (announcement == null) return new ErrorDataResult<AnnouncementDto>("Duyuru bulunamadı.");
-
-        var author = await _userDal.GetAsync(u => u.Id == announcement.AuthorId);
-
-        var dto = new AnnouncementDto
-        {
-            Id = announcement.Id,
-            TenantId = announcement.TenantId,
-            AuthorId = announcement.AuthorId,
-            AuthorName = author != null ? $"{author.FirstName} {author.LastName}" : "Bilinmiyor",
-            Title = announcement.Title,
-            Content = announcement.Content,
-            TargetAudience = announcement.TargetAudience,
-            IsPinned = announcement.IsPinned,
-            PublishedAt = announcement.PublishedAt
-        };
-
-        return new SuccessDataResult<AnnouncementDto>(dto, "Duyuru getirildi.");
+        var dto = await _announcementDal.GetAnnouncementDetailAsync(id);
+        return dto == null
+            ? new ErrorDataResult<AnnouncementDto>("Duyuru bulunamadı.", ResultErrorType.NotFound)
+            : new SuccessDataResult<AnnouncementDto>(dto, "Duyuru getirildi.");
     }
 
     [ValidationAspect(typeof(CreateAnnouncementValidator))]

@@ -28,3 +28,8 @@ public class CreateParentNotificationDto : IDto
     public string RecipientPhone { get; set; } = string.Empty;
     public string DeliveryChannel { get; set; } = "in_app";
 }
+
+public class ParentNotificationFilter : IDto
+{
+    public Guid? StudentId { get; set; }
+}

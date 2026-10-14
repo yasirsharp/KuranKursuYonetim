@@ -65,3 +65,14 @@ public class UpdateExamResultDto : IDto
     public string? Grade { get; set; }
     public string? TeacherNotes { get; set; }
 }
+
+public class ExamFilter : IDto
+{
+    public Guid? GroupId { get; set; }
+}
+
+public class ExamResultFilter : IDto
+{
+    public Guid? ExamId { get; set; }
+    public Guid? StudentId { get; set; }
+}

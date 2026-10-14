@@ -66,3 +66,11 @@ public class CreateRepetitionSessionDto
     public string Performance { get; set; }
     public string TeacherNotes { get; set; }
 }
+
+/// <summary>Yoklama listesi filtreleri (query string'den bağlanır).</summary>
+public class AttendanceFilter
+{
+    public Guid? StudentId { get; set; }
+    public DateTime? From { get; set; }
+    public DateTime? To { get; set; }
+}

@@ -39,47 +39,13 @@ public class LessonManager : ILessonService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IDataResult<PagedResult<LessonDto>>> GetAllAsync(PaginationParams paginationParams)
+    public async Task<IDataResult<PagedResult<LessonDto>>> GetAllAsync(LessonFilter filter, PaginationParams paginationParams)
     {
-        // TODO: Sayfalama/projection ile birlikte öğrenci ve öğretmen adlarını tek sorguda getir; mevcut döngü N+1 sorgu üretir.
+        if (filter.StudentId is { } studentId && !await _accessScope.CanAccessStudentAsync(studentId))
+            return new ErrorDataResult<PagedResult<LessonDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
+
         var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
-        var lessons = scopeIds == null
-            ? await _lessonDal.GetListAsync()
-            : await _lessonDal.GetListAsync(l => scopeIds.Contains(l.StudentId));
-        
-        var totalCount = lessons.Count;
-        var pagedLessons = lessons
-            .OrderByDescending(l => l.LessonDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<LessonDto>();
-        foreach (var l in pagedLessons)
-        {
-            var student = await _studentDal.GetAsync(s => s.Id == l.StudentId);
-            var teacher = await _userDal.GetAsync(u => u.Id == l.TeacherId);
-
-            dtoList.Add(new LessonDto
-            {
-                Id = l.Id,
-                TenantId = l.TenantId,
-                StudentId = l.StudentId,
-                TeacherId = l.TeacherId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-                TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-                LessonDate = l.LessonDate,
-                CuzNo = l.JuzNumber,
-                PageNo = l.PageNumber,
-                SurahName = l.SuraId.ToString(),
-                IsNewPage = l.IsNewPage,
-                Performance = l.Performance,
-                HomeworkStatus = l.HomeworkStatus,
-                TeacherNotes = l.Notes
-            });
-        }
-
-        var result = new PagedResult<LessonDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _lessonDal.GetLessonDetailsPagedAsync(filter, scopeIds, paginationParams);
         return new SuccessDataResult<PagedResult<LessonDto>>(result, "Dersler listelendi.");
     }
 
@@ -88,71 +54,15 @@ public class LessonManager : ILessonService
         if (!await _accessScope.CanAccessStudentAsync(studentId))
             return new ErrorDataResult<PagedResult<LessonDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
 
-        var lessons = await _lessonDal.GetListAsync(l => l.StudentId == studentId);
-        
-        var totalCount = lessons.Count;
-        var pagedLessons = lessons
-            .OrderByDescending(l => l.LessonDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<LessonDto>();
-        var student = await _studentDal.GetAsync(s => s.Id == studentId);
-        
-        foreach (var l in pagedLessons)
-        {
-            var teacher = await _userDal.GetAsync(u => u.Id == l.TeacherId);
-
-            dtoList.Add(new LessonDto
-            {
-                Id = l.Id,
-                TenantId = l.TenantId,
-                StudentId = l.StudentId,
-                TeacherId = l.TeacherId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-                TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-                LessonDate = l.LessonDate,
-                CuzNo = l.JuzNumber,
-                PageNo = l.PageNumber,
-                SurahName = l.SuraId.ToString(),
-                IsNewPage = l.IsNewPage,
-                Performance = l.Performance,
-                HomeworkStatus = l.HomeworkStatus,
-                TeacherNotes = l.Notes
-            });
-        }
-
-        var result = new PagedResult<LessonDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _lessonDal.GetLessonDetailsPagedAsync(new LessonFilter { StudentId = studentId }, null, paginationParams);
         return new SuccessDataResult<PagedResult<LessonDto>>(result, "Öğrenci dersleri listelendi.");
     }
 
     public async Task<IDataResult<LessonDto>> GetByIdAsync(Guid id)
     {
-        var l = await _lessonDal.GetAsync(x => x.Id == id);
-        if (l == null || !await _accessScope.CanAccessStudentAsync(l.StudentId))
+        var dto = await _lessonDal.GetLessonDetailAsync(id);
+        if (dto == null || !await _accessScope.CanAccessStudentAsync(dto.StudentId))
             return new ErrorDataResult<LessonDto>("Ders bulunamadı.", ResultErrorType.NotFound);
-
-        var student = await _studentDal.GetAsync(s => s.Id == l.StudentId);
-        var teacher = await _userDal.GetAsync(u => u.Id == l.TeacherId);
-
-        var dto = new LessonDto
-        {
-            Id = l.Id,
-            TenantId = l.TenantId,
-            StudentId = l.StudentId,
-            TeacherId = l.TeacherId,
-            StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-            TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-            LessonDate = l.LessonDate,
-            CuzNo = l.JuzNumber,
-            PageNo = l.PageNumber,
-            SurahName = l.SuraId.ToString(),
-            IsNewPage = l.IsNewPage,
-            Performance = l.Performance,
-            HomeworkStatus = l.HomeworkStatus,
-            TeacherNotes = l.Notes
-        };
 
         return new SuccessDataResult<LessonDto>(dto, "Ders getirildi.");
     }

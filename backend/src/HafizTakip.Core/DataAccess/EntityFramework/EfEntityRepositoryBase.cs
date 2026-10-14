@@ -1,5 +1,7 @@
 using System.Linq.Expressions;
 using HafizTakip.Core.Entities;
+using HafizTakip.Core.Utilities.Requests;
+using HafizTakip.Core.Utilities.Results;
 using Microsoft.EntityFrameworkCore;
 
 namespace HafizTakip.Core.DataAccess.EntityFramework;
@@ -22,7 +24,7 @@ public class EfEntityRepositoryBase<TEntity, TContext> : IEntityRepository<TEnti
 
     public async Task<List<TEntity>> GetListAsync(Expression<Func<TEntity, bool>>? filter = null)
     {
-        // TODO: Büyük koleksiyonlar için IQueryable tabanlı sıralama, projection ve DB seviyesinde sayfalama API'si ekle.
+        // Not: tüm satırları getirir; listeleme uçları için GetPagedAsync veya DAL detay sorgularını kullanın.
         return filter == null
             ? await Context.Set<TEntity>().ToListAsync()
             : await Context.Set<TEntity>().Where(filter).ToListAsync();
@@ -38,6 +40,17 @@ public class EfEntityRepositoryBase<TEntity, TContext> : IEntityRepository<TEnti
         return filter == null
             ? await Context.Set<TEntity>().CountAsync()
             : await Context.Set<TEntity>().CountAsync(filter);
+    }
+
+    public Task<PagedResult<TResult>> GetPagedAsync<TResult>(
+        Expression<Func<TEntity, bool>>? filter,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy,
+        Expression<Func<TEntity, TResult>> selector,
+        PaginationParams paging)
+    {
+        var query = Context.Set<TEntity>().AsNoTracking();
+        if (filter != null) query = query.Where(filter);
+        return orderBy(query).Select(selector).ToPagedResultAsync(paging);
     }
 
     public async Task AddAsync(TEntity entity)

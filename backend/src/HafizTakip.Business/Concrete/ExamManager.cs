@@ -25,87 +25,22 @@ public class ExamManager : IExamService
 
     public async Task<IDataResult<PagedResult<ExamDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var exams = await _examDal.GetListAsync();
-        
-        var totalCount = exams.Count;
-        var pagedList = exams
-            .OrderByDescending(x => x.ExamDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<ExamDto>();
-        foreach (var exam in pagedList)
-        {
-            var group = await _groupDal.GetAsync(g => g.Id == exam.GroupId);
-            
-            dtoList.Add(new ExamDto
-            {
-                Id = exam.Id,
-                TenantId = exam.TenantId,
-                GroupId = exam.GroupId,
-                GroupName = group != null ? group.Name : "Bilinmiyor",
-                ExamType = exam.ExamType,
-                ExamDate = exam.ExamDate,
-                Title = exam.Title,
-                Description = exam.Description
-            });
-        }
-
-        var result = new PagedResult<ExamDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _examDal.GetExamDetailsPagedAsync(new ExamFilter(), paginationParams);
         return new SuccessDataResult<PagedResult<ExamDto>>(result, "Sınavlar listelendi.");
     }
 
     public async Task<IDataResult<PagedResult<ExamDto>>> GetByGroupIdAsync(Guid groupId, PaginationParams paginationParams)
     {
-        var exams = await _examDal.GetListAsync(e => e.GroupId == groupId);
-        
-        var totalCount = exams.Count;
-        var pagedList = exams
-            .OrderByDescending(x => x.ExamDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var group = await _groupDal.GetAsync(g => g.Id == groupId);
-        var groupName = group != null ? group.Name : "Bilinmiyor";
-
-        var dtoList = pagedList.Select(exam => new ExamDto
-        {
-            Id = exam.Id,
-            TenantId = exam.TenantId,
-            GroupId = exam.GroupId,
-            GroupName = groupName,
-            ExamType = exam.ExamType,
-            ExamDate = exam.ExamDate,
-            Title = exam.Title,
-            Description = exam.Description
-        }).ToList();
-
-        var result = new PagedResult<ExamDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<ExamDto>>(result, "Sınıf sınavları listelendi.");
+        var result = await _examDal.GetExamDetailsPagedAsync(new ExamFilter { GroupId = groupId }, paginationParams);
+        return new SuccessDataResult<PagedResult<ExamDto>>(result, "Sınıfın sınavları listelendi.");
     }
 
     public async Task<IDataResult<ExamDto>> GetByIdAsync(Guid id)
     {
-        var exam = await _examDal.GetAsync(e => e.Id == id);
-        if (exam == null) return new ErrorDataResult<ExamDto>("Sınav bulunamadı.");
-
-        var group = await _groupDal.GetAsync(g => g.Id == exam.GroupId);
-
-        var dto = new ExamDto
-        {
-            Id = exam.Id,
-            TenantId = exam.TenantId,
-            GroupId = exam.GroupId,
-            GroupName = group != null ? group.Name : "Bilinmiyor",
-            ExamType = exam.ExamType,
-            ExamDate = exam.ExamDate,
-            Title = exam.Title,
-            Description = exam.Description
-        };
-
-        return new SuccessDataResult<ExamDto>(dto, "Sınav getirildi.");
+        var dto = await _examDal.GetExamDetailAsync(id);
+        return dto == null
+            ? new ErrorDataResult<ExamDto>("Sınav bulunamadı.", ResultErrorType.NotFound)
+            : new SuccessDataResult<ExamDto>(dto, "Sınav getirildi.");
     }
 
     [ValidationAspect(typeof(CreateExamValidator))]

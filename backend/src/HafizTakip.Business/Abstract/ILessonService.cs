@@ -8,7 +8,7 @@ namespace HafizTakip.Business.Abstract;
 
 public interface ILessonService
 {
-    Task<IDataResult<PagedResult<LessonDto>>> GetAllAsync(PaginationParams paginationParams);
+    Task<IDataResult<PagedResult<LessonDto>>> GetAllAsync(LessonFilter filter, PaginationParams paginationParams);
     Task<IDataResult<PagedResult<LessonDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams);
     Task<IDataResult<LessonDto>> GetByIdAsync(Guid id);
     Task<IResult> AddAsync(CreateLessonDto createLessonDto);

@@ -31,42 +31,10 @@ public class ExamResultManager : IExamResultService
 
     public async Task<IDataResult<PagedResult<ExamResultDto>>> GetByExamIdAsync(Guid examId, PaginationParams paginationParams)
     {
+        // Veli yalnızca kendi çocuğunun sonucunu görür (kapsam DAL sorgusuna uygulanır)
         var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
-        var results = scopeIds == null
-            ? await _examResultDal.GetListAsync(r => r.ExamId == examId)
-            : await _examResultDal.GetListAsync(r => r.ExamId == examId && scopeIds.Contains(r.StudentId));
-        
-        var totalCount = results.Count;
-        var pagedList = results
-            .OrderByDescending(x => x.Score)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var exam = await _examDal.GetAsync(e => e.Id == examId);
-        var examTitle = exam != null ? exam.Title : "Bilinmiyor";
-
-        var dtoList = new List<ExamResultDto>();
-        foreach (var result in pagedList)
-        {
-            var student = await _studentDal.GetAsync(s => s.Id == result.StudentId);
-            
-            dtoList.Add(new ExamResultDto
-            {
-                Id = result.Id,
-                TenantId = result.TenantId,
-                ExamId = result.ExamId,
-                ExamTitle = examTitle,
-                StudentId = result.StudentId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-                Score = result.Score,
-                Grade = result.Grade,
-                TeacherNotes = result.TeacherNotes
-            });
-        }
-
-        var pagedResult = new PagedResult<ExamResultDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<ExamResultDto>>(pagedResult, "Sınav sonuçları listelendi.");
+        var result = await _examResultDal.GetExamResultDetailsPagedAsync(new ExamResultFilter { ExamId = examId }, scopeIds, paginationParams);
+        return new SuccessDataResult<PagedResult<ExamResultDto>>(result, "Sınav sonuçları listelendi.");
     }
 
     public async Task<IDataResult<PagedResult<ExamResultDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
@@ -74,61 +42,15 @@ public class ExamResultManager : IExamResultService
         if (!await _accessScope.CanAccessStudentAsync(studentId))
             return new ErrorDataResult<PagedResult<ExamResultDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
 
-        var results = await _examResultDal.GetListAsync(r => r.StudentId == studentId);
-        
-        var totalCount = results.Count;
-        var pagedList = results
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var student = await _studentDal.GetAsync(s => s.Id == studentId);
-        var studentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor";
-
-        var dtoList = new List<ExamResultDto>();
-        foreach (var result in pagedList)
-        {
-            var exam = await _examDal.GetAsync(e => e.Id == result.ExamId);
-            
-            dtoList.Add(new ExamResultDto
-            {
-                Id = result.Id,
-                TenantId = result.TenantId,
-                ExamId = result.ExamId,
-                ExamTitle = exam != null ? exam.Title : "Bilinmiyor",
-                StudentId = result.StudentId,
-                StudentName = studentName,
-                Score = result.Score,
-                Grade = result.Grade,
-                TeacherNotes = result.TeacherNotes
-            });
-        }
-
-        var pagedResult = new PagedResult<ExamResultDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<ExamResultDto>>(pagedResult, "Öğrenci sınav sonuçları listelendi.");
+        var result = await _examResultDal.GetExamResultDetailsPagedAsync(new ExamResultFilter { StudentId = studentId }, null, paginationParams);
+        return new SuccessDataResult<PagedResult<ExamResultDto>>(result, "Öğrencinin sınav sonuçları listelendi.");
     }
 
     public async Task<IDataResult<ExamResultDto>> GetByIdAsync(Guid id)
     {
-        var result = await _examResultDal.GetAsync(r => r.Id == id);
-        if (result == null || !await _accessScope.CanAccessStudentAsync(result.StudentId))
+        var dto = await _examResultDal.GetExamResultDetailAsync(id);
+        if (dto == null || !await _accessScope.CanAccessStudentAsync(dto.StudentId))
             return new ErrorDataResult<ExamResultDto>("Sınav sonucu bulunamadı.", ResultErrorType.NotFound);
-
-        var exam = await _examDal.GetAsync(e => e.Id == result.ExamId);
-        var student = await _studentDal.GetAsync(s => s.Id == result.StudentId);
-
-        var dto = new ExamResultDto
-        {
-            Id = result.Id,
-            TenantId = result.TenantId,
-            ExamId = result.ExamId,
-            ExamTitle = exam != null ? exam.Title : "Bilinmiyor",
-            StudentId = result.StudentId,
-            StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-            Score = result.Score,
-            Grade = result.Grade,
-            TeacherNotes = result.TeacherNotes
-        };
 
         return new SuccessDataResult<ExamResultDto>(dto, "Sınav sonucu getirildi.");
     }

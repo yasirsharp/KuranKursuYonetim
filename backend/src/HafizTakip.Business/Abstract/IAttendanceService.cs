@@ -9,7 +9,7 @@ namespace HafizTakip.Business.Abstract;
 
 public interface IAttendanceService
 {
-    Task<IDataResult<PagedResult<AttendanceDto>>> GetAllAsync(PaginationParams paginationParams);
+    Task<IDataResult<PagedResult<AttendanceDto>>> GetAllAsync(AttendanceFilter filter, PaginationParams paginationParams);
     Task<IDataResult<PagedResult<AttendanceDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams);
     Task<IDataResult<AttendanceDto>> GetByIdAsync(Guid id);
     Task<IResult> AddAsync(CreateAttendanceDto createAttendanceDto);

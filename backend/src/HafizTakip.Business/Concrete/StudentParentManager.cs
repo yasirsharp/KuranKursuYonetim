@@ -28,48 +28,14 @@ public class StudentParentManager : IStudentParentService
 
     public async Task<IDataResult<List<StudentParentDto>>> GetParentsByStudentIdAsync(Guid studentId)
     {
-        var relations = await _studentParentDal.GetListAsync(sp => sp.StudentId == studentId);
-        var dtoList = new List<StudentParentDto>();
-
-        foreach (var rel in relations)
-        {
-            var student = await _studentDal.GetAsync(s => s.Id == rel.StudentId);
-            var parent = await _userDal.GetAsync(u => u.Id == rel.ParentId);
-
-            dtoList.Add(new StudentParentDto
-            {
-                Id = rel.Id,
-                StudentId = rel.StudentId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "",
-                ParentId = rel.ParentId,
-                ParentName = parent != null ? $"{parent.FirstName} {parent.LastName}" : ""
-            });
-        }
-
-        return new SuccessDataResult<List<StudentParentDto>>(dtoList);
+        var relations = await _studentParentDal.GetRelationDetailsAsync(studentId, null);
+        return new SuccessDataResult<List<StudentParentDto>>(relations);
     }
 
     public async Task<IDataResult<List<StudentParentDto>>> GetStudentsByParentIdAsync(Guid parentId)
     {
-        var relations = await _studentParentDal.GetListAsync(sp => sp.ParentId == parentId);
-        var dtoList = new List<StudentParentDto>();
-
-        foreach (var rel in relations)
-        {
-            var student = await _studentDal.GetAsync(s => s.Id == rel.StudentId);
-            var parent = await _userDal.GetAsync(u => u.Id == rel.ParentId);
-
-            dtoList.Add(new StudentParentDto
-            {
-                Id = rel.Id,
-                StudentId = rel.StudentId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "",
-                ParentId = rel.ParentId,
-                ParentName = parent != null ? $"{parent.FirstName} {parent.LastName}" : ""
-            });
-        }
-
-        return new SuccessDataResult<List<StudentParentDto>>(dtoList);
+        var relations = await _studentParentDal.GetRelationDetailsAsync(null, parentId);
+        return new SuccessDataResult<List<StudentParentDto>>(relations);
     }
 
     [ValidationAspect(typeof(CreateStudentParentValidator))]

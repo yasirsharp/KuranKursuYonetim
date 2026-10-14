@@ -20,9 +20,9 @@ public class LessonsController : ApiControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] PaginationParams paginationParams)
+    public async Task<IActionResult> GetAll([FromQuery] LessonFilter filter, [FromQuery] PaginationParams paginationParams)
     {
-        var result = await _lessonService.GetAllAsync(paginationParams);
+        var result = await _lessonService.GetAllAsync(filter, paginationParams);
         return HandleResult(result);
     }
 

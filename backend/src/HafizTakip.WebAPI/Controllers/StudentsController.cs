@@ -19,9 +19,9 @@ public class StudentsController : ApiControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] HafizTakip.Core.Utilities.Requests.PaginationParams paginationParams)
+    public async Task<IActionResult> GetAll([FromQuery] StudentFilter filter, [FromQuery] HafizTakip.Core.Utilities.Requests.PaginationParams paginationParams)
     {
-        var result = await _studentService.GetAllAsync(paginationParams);
+        var result = await _studentService.GetAllAsync(filter, paginationParams);
         return HandleResult(result);
     }
 

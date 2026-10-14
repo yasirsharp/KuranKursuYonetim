@@ -32,3 +32,8 @@ public class UpdateEtutNoteDto : IDto
     public string HomeworkStatus { get; set; } = string.Empty;
     public string? TeacherNotes { get; set; }
 }
+
+public class EtutNoteFilter : IDto
+{
+    public Guid? StudentId { get; set; }
+}

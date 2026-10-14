@@ -5,6 +5,7 @@ using HafizTakip.Core.DataAccess;
 using HafizTakip.Core.Entities;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Requests;
+using HafizTakip.Core.Utilities.Results;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
@@ -169,41 +170,48 @@ public class LessonManagerTests
     }
 
     [Fact]
-    public async Task GetByStudentIdAsync_ShouldReturnPagedLessonsForStudent()
+    public async Task GetByStudentIdAsync_ShouldQueryOnlyThatStudentInSingleDatabaseQuery()
     {
-        // Arrange
+        // Arrange: öğrenci/hoca adları ve sayfalama DAL'daki tek sorguda (N+1 yok)
         var studentId = Guid.NewGuid();
-        var teacherId = Guid.NewGuid();
-
-        var lessons = new List<Lesson>
-        {
-            new() { Id = Guid.NewGuid(), StudentId = studentId, TeacherId = teacherId, LessonDate = DateTime.UtcNow, PageNumber = 20 }
-        };
-
-        var student = new Student { Id = studentId, FirstName = "Mehmet", LastName = "Demir" };
-        var teacher = new User { Id = teacherId, FirstName = "Ahmet", LastName = "Hoca" };
+        var pagination = new PaginationParams { Page = 1, PageSize = 10 };
+        var page = new PagedResult<LessonDto>(new List<LessonDto> { new() { StudentName = "Mehmet Demir", TeacherName = "Ahmet Hoca" } }, 1, 1, 10);
 
         _lessonDalMock
-            .Setup(d => d.GetListAsync(It.IsAny<Expression<Func<Lesson, bool>>>()))
-            .ReturnsAsync(lessons);
-
-        _studentDalMock
-            .Setup(s => s.GetAsync(It.IsAny<Expression<Func<Student, bool>>>()))
-            .ReturnsAsync(student);
-
-        _userDalMock
-            .Setup(u => u.GetAsync(It.IsAny<Expression<Func<User, bool>>>()))
-            .ReturnsAsync(teacher);
-
-        var pagination = new PaginationParams { Page = 1, PageSize = 10 };
+            .Setup(d => d.GetLessonDetailsPagedAsync(It.Is<LessonFilter>(f => f.StudentId == studentId), null, pagination))
+            .ReturnsAsync(page);
 
         // Act
         var result = await _lessonManager.GetByStudentIdAsync(studentId, pagination);
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Data.Data.Should().HaveCount(1);
-        result.Data.Data.First().StudentName.Should().Be("Mehmet Demir");
-        result.Data.Data.First().TeacherName.Should().Be("Ahmet Hoca");
+        result.Data.Should().BeSameAs(page);
+        _studentDalMock.Verify(s => s.GetAsync(It.IsAny<Expression<Func<Student, bool>>>()), Times.Never);
+        _userDalMock.Verify(u => u.GetAsync(It.IsAny<Expression<Func<User, bool>>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_ForParent_ShouldPassScopeToDatabaseQuery()
+    {
+        // Arrange: veli kapsamı istemciden değil, sunucudaki erişim kapsamından gelir
+        var ownChild = Guid.NewGuid();
+        var lessonDal = new Mock<ILessonDal>();
+        var manager = new LessonManager(lessonDal.Object, _studentDalMock.Object, _userDalMock.Object,
+            _tenantContextMock.Object, _referencesMock.Object, _currentUserMock.Object,
+            AccessScopes.Only(ownChild), _unitOfWorkMock.Object);
+        var pagination = new PaginationParams();
+        lessonDal
+            .Setup(d => d.GetLessonDetailsPagedAsync(It.IsAny<LessonFilter>(), It.IsAny<IReadOnlyCollection<Guid>?>(), pagination))
+            .ReturnsAsync(new PagedResult<LessonDto>(new List<LessonDto>(), 0, 1, 20));
+
+        // Act
+        await manager.GetAllAsync(new LessonFilter(), pagination);
+
+        // Assert
+        lessonDal.Verify(d => d.GetLessonDetailsPagedAsync(
+            It.IsAny<LessonFilter>(),
+            It.Is<IReadOnlyCollection<Guid>?>(ids => ids != null && ids.Count == 1 && ids.Contains(ownChild)),
+            pagination), Times.Once);
     }
 }

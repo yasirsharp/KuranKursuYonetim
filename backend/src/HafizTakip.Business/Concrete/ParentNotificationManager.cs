@@ -27,99 +27,22 @@ public class ParentNotificationManager : IParentNotificationService
 
     public async Task<IDataResult<PagedResult<ParentNotificationDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var notifications = await _parentNotificationDal.GetListAsync();
-        
-        var totalCount = notifications.Count;
-        var pagedList = notifications
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<ParentNotificationDto>();
-        foreach (var notification in pagedList)
-        {
-            var student = await _studentDal.GetAsync(s => s.Id == notification.StudentId);
-            
-            dtoList.Add(new ParentNotificationDto
-            {
-                Id = notification.Id,
-                TenantId = notification.TenantId,
-                StudentId = notification.StudentId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-                NotificationType = notification.NotificationType,
-                Title = notification.Title,
-                Message = notification.Message,
-                RecipientPhone = notification.RecipientPhone,
-                DeliveryChannel = notification.DeliveryChannel,
-                DeliveryStatus = notification.DeliveryStatus,
-                SentAt = notification.SentAt,
-                CreatedAt = notification.CreatedAt
-            });
-        }
-
-        var result = new PagedResult<ParentNotificationDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _parentNotificationDal.GetNotificationDetailsPagedAsync(new ParentNotificationFilter(), paginationParams);
         return new SuccessDataResult<PagedResult<ParentNotificationDto>>(result, "Bildirimler listelendi.");
     }
 
     public async Task<IDataResult<PagedResult<ParentNotificationDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
     {
-        var notifications = await _parentNotificationDal.GetListAsync(n => n.StudentId == studentId);
-        
-        var totalCount = notifications.Count;
-        var pagedList = notifications
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var student = await _studentDal.GetAsync(s => s.Id == studentId);
-        var studentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor";
-
-        var dtoList = pagedList.Select(notification => new ParentNotificationDto
-        {
-            Id = notification.Id,
-            TenantId = notification.TenantId,
-            StudentId = notification.StudentId,
-            StudentName = studentName,
-            NotificationType = notification.NotificationType,
-            Title = notification.Title,
-            Message = notification.Message,
-            RecipientPhone = notification.RecipientPhone,
-            DeliveryChannel = notification.DeliveryChannel,
-            DeliveryStatus = notification.DeliveryStatus,
-            SentAt = notification.SentAt,
-            CreatedAt = notification.CreatedAt
-        }).ToList();
-
-        var result = new PagedResult<ParentNotificationDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<ParentNotificationDto>>(result, "Öğrenci bildirimleri listelendi.");
+        var result = await _parentNotificationDal.GetNotificationDetailsPagedAsync(new ParentNotificationFilter { StudentId = studentId }, paginationParams);
+        return new SuccessDataResult<PagedResult<ParentNotificationDto>>(result, "Öğrencinin bildirimleri listelendi.");
     }
 
     public async Task<IDataResult<ParentNotificationDto>> GetByIdAsync(Guid id)
     {
-        var notification = await _parentNotificationDal.GetAsync(n => n.Id == id);
-        if (notification == null) return new ErrorDataResult<ParentNotificationDto>("Bildirim bulunamadı.");
-
-        var student = await _studentDal.GetAsync(s => s.Id == notification.StudentId);
-
-        var dto = new ParentNotificationDto
-        {
-            Id = notification.Id,
-            TenantId = notification.TenantId,
-            StudentId = notification.StudentId,
-            StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-            NotificationType = notification.NotificationType,
-            Title = notification.Title,
-            Message = notification.Message,
-            RecipientPhone = notification.RecipientPhone,
-            DeliveryChannel = notification.DeliveryChannel,
-            DeliveryStatus = notification.DeliveryStatus,
-            SentAt = notification.SentAt,
-            CreatedAt = notification.CreatedAt
-        };
-
-        return new SuccessDataResult<ParentNotificationDto>(dto, "Bildirim getirildi.");
+        var dto = await _parentNotificationDal.GetNotificationDetailAsync(id);
+        return dto == null
+            ? new ErrorDataResult<ParentNotificationDto>("Bildirim bulunamadı.", ResultErrorType.NotFound)
+            : new SuccessDataResult<ParentNotificationDto>(dto, "Bildirim getirildi.");
     }
 
     [ValidationAspect(typeof(CreateParentNotificationValidator))]

@@ -25,90 +25,22 @@ public class InvoiceManager : IInvoiceService
 
     public async Task<IDataResult<PagedResult<InvoiceDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var invoices = await _invoiceDal.GetListAsync();
-        
-        var totalCount = invoices.Count;
-        var pagedList = invoices
-            .OrderByDescending(x => x.DueDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<InvoiceDto>();
-        foreach (var invoice in pagedList)
-        {
-            var tenant = await _tenantDal.GetAsync(t => t.Id == invoice.TenantId);
-            
-            dtoList.Add(new InvoiceDto
-            {
-                Id = invoice.Id,
-                TenantId = invoice.TenantId,
-                TenantName = tenant != null ? tenant.Name : "Bilinmiyor",
-                SubscriptionId = invoice.SubscriptionId,
-                InvoiceNo = invoice.InvoiceNo,
-                Amount = invoice.Amount,
-                DueDate = invoice.DueDate,
-                PaidDate = invoice.PaidDate,
-                Status = invoice.Status
-            });
-        }
-
-        var result = new PagedResult<InvoiceDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _invoiceDal.GetInvoiceDetailsPagedAsync(new InvoiceFilter(), paginationParams);
         return new SuccessDataResult<PagedResult<InvoiceDto>>(result, "Faturalar listelendi.");
     }
 
     public async Task<IDataResult<PagedResult<InvoiceDto>>> GetByTenantIdAsync(Guid tenantId, PaginationParams paginationParams)
     {
-        var invoices = await _invoiceDal.GetListAsync(i => i.TenantId == tenantId);
-        
-        var totalCount = invoices.Count;
-        var pagedList = invoices
-            .OrderByDescending(x => x.DueDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var tenant = await _tenantDal.GetAsync(t => t.Id == tenantId);
-        var tenantName = tenant != null ? tenant.Name : "Bilinmiyor";
-
-        var dtoList = pagedList.Select(invoice => new InvoiceDto
-        {
-            Id = invoice.Id,
-            TenantId = invoice.TenantId,
-            TenantName = tenantName,
-            SubscriptionId = invoice.SubscriptionId,
-            InvoiceNo = invoice.InvoiceNo,
-            Amount = invoice.Amount,
-            DueDate = invoice.DueDate,
-            PaidDate = invoice.PaidDate,
-            Status = invoice.Status
-        }).ToList();
-
-        var result = new PagedResult<InvoiceDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<InvoiceDto>>(result, "Kurs faturaları listelendi.");
+        var result = await _invoiceDal.GetInvoiceDetailsPagedAsync(new InvoiceFilter { TenantId = tenantId }, paginationParams);
+        return new SuccessDataResult<PagedResult<InvoiceDto>>(result, "Kursun faturaları listelendi.");
     }
 
     public async Task<IDataResult<InvoiceDto>> GetByIdAsync(Guid id)
     {
-        var invoice = await _invoiceDal.GetAsync(i => i.Id == id);
-        if (invoice == null) return new ErrorDataResult<InvoiceDto>("Fatura bulunamadı.");
-
-        var tenant = await _tenantDal.GetAsync(t => t.Id == invoice.TenantId);
-
-        var dto = new InvoiceDto
-        {
-            Id = invoice.Id,
-            TenantId = invoice.TenantId,
-            TenantName = tenant != null ? tenant.Name : "Bilinmiyor",
-            SubscriptionId = invoice.SubscriptionId,
-            InvoiceNo = invoice.InvoiceNo,
-            Amount = invoice.Amount,
-            DueDate = invoice.DueDate,
-            PaidDate = invoice.PaidDate,
-            Status = invoice.Status
-        };
-
-        return new SuccessDataResult<InvoiceDto>(dto, "Fatura getirildi.");
+        var dto = await _invoiceDal.GetInvoiceDetailAsync(id);
+        return dto == null
+            ? new ErrorDataResult<InvoiceDto>("Fatura bulunamadı.", ResultErrorType.NotFound)
+            : new SuccessDataResult<InvoiceDto>(dto, "Fatura getirildi.");
     }
 
     [ValidationAspect(typeof(CreateInvoiceValidator))]

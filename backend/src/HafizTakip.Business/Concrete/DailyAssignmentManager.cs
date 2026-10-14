@@ -46,8 +46,9 @@ public class DailyAssignmentManager : IDailyAssignmentService
 
     public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var assignments = await _dailyAssignmentDal.GetListAsync();
-        return await CreatePagedResult(assignments, paginationParams);
+        var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
+        var result = await _dailyAssignmentDal.GetAssignmentDetailsPagedAsync(new DailyAssignmentFilter(), scopeIds, paginationParams);
+        return new SuccessDataResult<PagedResult<DailyAssignmentDto>>(result);
     }
 
     public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
@@ -55,44 +56,28 @@ public class DailyAssignmentManager : IDailyAssignmentService
         if (!await _accessScope.CanAccessStudentAsync(studentId))
             return new ErrorDataResult<PagedResult<DailyAssignmentDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
 
-        var assignments = await _dailyAssignmentDal.GetListAsync(a => a.StudentId == studentId);
-        return await CreatePagedResult(assignments, paginationParams);
+        var result = await _dailyAssignmentDal.GetAssignmentDetailsPagedAsync(new DailyAssignmentFilter { StudentId = studentId }, null, paginationParams);
+        return new SuccessDataResult<PagedResult<DailyAssignmentDto>>(result);
     }
 
     public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetEtutAssignmentsAsync(DateTime date, PaginationParams paginationParams)
     {
-        var targetDateUtc = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
-        var nextDateUtc = targetDateUtc.AddDays(1);
-        var assignments = await _dailyAssignmentDal.GetListAsync(a => a.AssignmentDate >= targetDateUtc && a.AssignmentDate < nextDateUtc && a.IsBoarderToday && a.Status == AssignmentStatus.Assigned);
-        return await CreatePagedResult(assignments, paginationParams);
+        // Etüt listesi: o gün yatılı kalan ve görevi hâlâ etüt hocasında olan öğrenciler
+        var filter = new DailyAssignmentFilter
+        {
+            Date = date,
+            IsBoarderToday = true,
+            Status = AssignmentStatus.Assigned
+        };
+        var result = await _dailyAssignmentDal.GetAssignmentDetailsPagedAsync(filter, null, paginationParams);
+        return new SuccessDataResult<PagedResult<DailyAssignmentDto>>(result);
     }
 
     public async Task<IDataResult<DailyAssignmentDto>> GetByIdAsync(Guid id)
     {
-        var assignment = await _dailyAssignmentDal.GetAsync(a => a.Id == id);
-        if (assignment == null || !await _accessScope.CanAccessStudentAsync(assignment.StudentId))
+        var dto = await _dailyAssignmentDal.GetAssignmentDetailAsync(id);
+        if (dto == null || !await _accessScope.CanAccessStudentAsync(dto.StudentId))
             return new ErrorDataResult<DailyAssignmentDto>("Görev bulunamadı.", ResultErrorType.NotFound);
-
-        var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
-        var teacher = await _userDal.GetAsync(t => t.Id == assignment.TeacherId);
-
-        var dto = new DailyAssignmentDto
-        {
-            Id = assignment.Id,
-            TenantId = assignment.TenantId,
-            StudentId = assignment.StudentId,
-            StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-            TeacherId = assignment.TeacherId,
-            TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-            AssignmentDate = assignment.AssignmentDate,
-            IsBoarderToday = assignment.IsBoarderToday,
-            AssignedTasks = !string.IsNullOrWhiteSpace(assignment.AssignedTasks) ? (JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new()) : new(),
-            CompletedInEtut = !string.IsNullOrWhiteSpace(assignment.CompletedInEtut) ? (JsonSerializer.Deserialize<List<string>>(assignment.CompletedInEtut) ?? new()) : new(),
-            CompletedAtHome = !string.IsNullOrWhiteSpace(assignment.CompletedAtHome) ? (JsonSerializer.Deserialize<List<string>>(assignment.CompletedAtHome) ?? new()) : new(),
-            Status = assignment.Status,
-            EtutTeacherNote = assignment.EtutTeacherNote,
-            ParentNote = assignment.ParentNote
-        };
 
         return new SuccessDataResult<DailyAssignmentDto>(dto);
     }
@@ -191,43 +176,6 @@ public class DailyAssignmentManager : IDailyAssignmentService
         return new SuccessResult("Ev ödevi tamamlandı olarak işaretlendi.");
     }
 
-    private async Task<IDataResult<PagedResult<DailyAssignmentDto>>> CreatePagedResult(IList<DailyAssignment> assignments, PaginationParams paginationParams)
-    {
-        var totalCount = assignments.Count;
-        var pagedList = assignments
-            .OrderByDescending(x => x.AssignmentDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<DailyAssignmentDto>();
-        foreach (var assignment in pagedList)
-        {
-            var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
-            var teacher = await _userDal.GetAsync(t => t.Id == assignment.TeacherId);
-
-            dtoList.Add(new DailyAssignmentDto
-            {
-                Id = assignment.Id,
-                TenantId = assignment.TenantId,
-                StudentId = assignment.StudentId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-                TeacherId = assignment.TeacherId,
-                TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-                AssignmentDate = assignment.AssignmentDate,
-                IsBoarderToday = assignment.IsBoarderToday,
-                AssignedTasks = !string.IsNullOrWhiteSpace(assignment.AssignedTasks) ? (JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new()) : new(),
-                CompletedInEtut = !string.IsNullOrWhiteSpace(assignment.CompletedInEtut) ? (JsonSerializer.Deserialize<List<string>>(assignment.CompletedInEtut) ?? new()) : new(),
-                CompletedAtHome = !string.IsNullOrWhiteSpace(assignment.CompletedAtHome) ? (JsonSerializer.Deserialize<List<string>>(assignment.CompletedAtHome) ?? new()) : new(),
-                Status = assignment.Status,
-                EtutTeacherNote = assignment.EtutTeacherNote,
-                ParentNote = assignment.ParentNote
-            });
-        }
-
-        var result = new PagedResult<DailyAssignmentDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<DailyAssignmentDto>>(result, "Görevler listelendi.");
-    }
 
     private Task<Core.Utilities.Results.IResult> SendParentNotification(Student student, DailyAssignment assignment)
     {

@@ -51,3 +51,11 @@ public class UpdateLessonDto
     public string HomeworkStatus { get; set; } = "yapilmadi";
     public string? TeacherNotes { get; set; }
 }
+
+/// <summary>Ders listesi filtreleri (query string'den bağlanır).</summary>
+public class LessonFilter
+{
+    public Guid? StudentId { get; set; }
+    public DateTime? From { get; set; }
+    public DateTime? To { get; set; }
+}

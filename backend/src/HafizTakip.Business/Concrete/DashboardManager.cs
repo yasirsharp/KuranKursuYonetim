@@ -1,3 +1,4 @@
+using HafizTakip.Core.Constants;
 using HafizTakip.Core.Enums;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Results;
@@ -6,8 +7,15 @@ using HafizTakip.Entities.Dtos;
 
 namespace HafizTakip.Business.Concrete;
 
+/// <summary>
+/// Özet sayılar veritabanında COUNT/AVG ile hesaplanır; tablolar belleğe yüklenmez.
+/// Devam oranında "geç gelen" öğrenci de derse katılmış sayılır.
+/// </summary>
 public class DashboardManager : IDashboardService
 {
+    private static readonly string[] TeacherRoles = { UserRole.HeadTeacher, UserRole.AssistantTeacher };
+    private static readonly string[] AttendedStatuses = { AttendanceStatus.Present, AttendanceStatus.Late };
+
     private readonly IStudentDal _studentDal;
     private readonly IUserDal _userDal;
     private readonly IGroupDal _groupDal;
@@ -15,10 +23,10 @@ public class DashboardManager : IDashboardService
     private readonly ILessonDal _lessonDal;
 
     public DashboardManager(
-        IStudentDal studentDal, 
-        IUserDal userDal, 
-        IGroupDal groupDal, 
-        IAttendanceDal attendanceDal, 
+        IStudentDal studentDal,
+        IUserDal userDal,
+        IGroupDal groupDal,
+        IAttendanceDal attendanceDal,
         ILessonDal lessonDal)
     {
         _studentDal = studentDal;
@@ -30,40 +38,22 @@ public class DashboardManager : IDashboardService
 
     public async Task<IDataResult<DashboardSummaryDto>> GetSummaryAsync()
     {
-        var allStudents = await _studentDal.GetListAsync();
-        var totalStudents = allStudents.Count;
-        var activeStudents = allStudents.Count(s => s.Status == StudentStatus.Active);
-        var hafizCount = allStudents.Count(s => s.IsHafiz);
-        var averageCompletedPages = totalStudents > 0 ? allStudents.Average(s => (double)s.CompletedPages) : 0.0;
+        var (today, tomorrow) = TodayRange();
 
-        var allUsers = await _userDal.GetListAsync();
-        var totalTeachers = allUsers.Count(u => u.Role == UserRole.HeadTeacher || u.Role == UserRole.AssistantTeacher);
-
-        var allGroups = await _groupDal.GetListAsync();
-        var totalGroups = allGroups.Count;
-
-        var today = DateTime.UtcNow.Date;
-
-        var allLessons = await _lessonDal.GetListAsync();
-        var todayLessons = allLessons.Count(l => l.LessonDate == today);
-
-        var allAttendances = await _attendanceDal.GetListAsync();
-        var todayAttendances = allAttendances.Where(a => a.Date == today).ToList();
-        var presentCount = todayAttendances.Count(a => a.Status == AttendanceStatus.Present);
-        double attendanceRate = todayAttendances.Count > 0
-            ? (double)presentCount / todayAttendances.Count * 100
-            : 0;
+        var todayAttendanceCount = await _attendanceDal.CountAsync(a => a.Date >= today && a.Date < tomorrow);
+        var todayAttendedCount = await _attendanceDal.CountAsync(a =>
+            a.Date >= today && a.Date < tomorrow && AttendedStatuses.Contains(a.Status));
 
         var summary = new DashboardSummaryDto
         {
-            TotalStudents = totalStudents,
-            ActiveStudents = activeStudents,
-            HafizCount = hafizCount,
-            TotalTeachers = totalTeachers,
-            TotalGroups = totalGroups,
-            TodayLessonCount = todayLessons,
-            TodayAttendanceRate = Math.Round(attendanceRate, 2),
-            AverageCompletedPages = Math.Round(averageCompletedPages, 2)
+            TotalStudents = await _studentDal.CountAsync(),
+            ActiveStudents = await _studentDal.CountAsync(s => s.Status == StudentStatus.Active),
+            HafizCount = await _studentDal.CountAsync(s => s.IsHafiz),
+            TotalTeachers = await _userDal.CountAsync(u => TeacherRoles.Contains(u.Role)),
+            TotalGroups = await _groupDal.CountAsync(),
+            TodayLessonCount = await _lessonDal.CountAsync(l => l.LessonDate >= today && l.LessonDate < tomorrow),
+            TodayAttendanceRate = Percentage(todayAttendedCount, todayAttendanceCount),
+            AverageCompletedPages = Math.Round(await _studentDal.GetAverageCompletedPagesAsync(), 2)
         };
 
         return new SuccessDataResult<DashboardSummaryDto>(summary, "Dashboard özeti getirildi.");
@@ -72,42 +62,22 @@ public class DashboardManager : IDashboardService
     public async Task<IDataResult<DashboardStudentProgressDto>> GetStudentProgressAsync(Guid studentId)
     {
         var student = await _studentDal.GetAsync(s => s.Id == studentId);
-        if (student == null) return new ErrorDataResult<DashboardStudentProgressDto>("Öğrenci bulunamadı.");
+        if (student == null)
+            return new ErrorDataResult<DashboardStudentProgressDto>("Öğrenci bulunamadı.", ResultErrorType.NotFound);
 
-        var allLessons = await _lessonDal.GetListAsync(l => l.StudentId == studentId);
-        var recentLessonsDto = allLessons
-            .OrderByDescending(l => l.LessonDate)
-            .Take(10)
-            .Select(l => new LessonDto
-            {
-                Id = l.Id,
-                LessonDate = l.LessonDate,
-                CuzNo = l.JuzNumber,
-                PageNo = l.PageNumber,
-                SurahName = l.SuraId.ToString(),
-                IsNewPage = l.IsNewPage,
-                Performance = l.Performance,
-                TeacherNotes = l.Notes
-            }).ToList();
-
-        var allAttendances = await _attendanceDal.GetListAsync(a => a.StudentId == studentId);
-        double attendanceRate = 0;
-        if (allAttendances.Any())
-        {
-            var present = allAttendances.Count(a => a.Status == AttendanceStatus.Present);
-            attendanceRate = (double)present / allAttendances.Count * 100;
-        }
+        var totalAttendance = await _attendanceDal.CountAsync(a => a.StudentId == studentId);
+        var attended = await _attendanceDal.CountAsync(a => a.StudentId == studentId && AttendedStatuses.Contains(a.Status));
 
         var progress = new DashboardStudentProgressDto
         {
             StudentName = $"{student.FirstName} {student.LastName}",
             CurrentPage = student.CurrentPage,
             CompletedPages = student.CompletedPages,
-            TotalPages = 604,
-            ProgressPercentage = Math.Round((double)student.CompletedPages / 604 * 100, 2),
+            TotalPages = QuranConstants.TotalPages,
+            ProgressPercentage = Percentage(student.CompletedPages, QuranConstants.TotalPages),
             IsHafiz = student.IsHafiz,
-            RecentLessons = recentLessonsDto,
-            AttendanceRate = Math.Round(attendanceRate, 2)
+            RecentLessons = await _lessonDal.GetRecentLessonsAsync(studentId, 10),
+            AttendanceRate = Percentage(attended, totalAttendance)
         };
 
         return new SuccessDataResult<DashboardStudentProgressDto>(progress, "Öğrenci ilerlemesi getirildi.");
@@ -115,33 +85,34 @@ public class DashboardManager : IDashboardService
 
     public async Task<IDataResult<DashboardGroupOverviewDto>> GetGroupOverviewAsync(Guid groupId)
     {
-        var group = await _groupDal.GetAsync(g => g.Id == groupId);
-        if (group == null) return new ErrorDataResult<DashboardGroupOverviewDto>("Sınıf bulunamadı.");
+        var group = await _groupDal.GetGroupDetailAsync(groupId);
+        if (group == null)
+            return new ErrorDataResult<DashboardGroupOverviewDto>("Sınıf bulunamadı.", ResultErrorType.NotFound);
 
-        var teacher = await _userDal.GetAsync(u => u.Id == group.TeacherId);
-        
-        var students = await _studentDal.GetListAsync(s => s.GroupId == groupId);
-        var studentCount = students.Count;
-        var averagePage = studentCount > 0 ? students.Average(s => (double)s.CompletedPages) : 0.0;
-
-        var today = DateTime.UtcNow.Date;
-        var studentIds = students.Select(s => s.Id).ToHashSet();
-        var allAttendances = await _attendanceDal.GetListAsync(a => a.Date == today);
-        var todayAttendances = allAttendances.Where(a => studentIds.Contains(a.StudentId)).ToList();
-
-        var todayPresent = todayAttendances.Count(a => a.Status == AttendanceStatus.Present);
-        var todayAbsent = todayAttendances.Count(a => a.Status == AttendanceStatus.Absent);
+        var (today, tomorrow) = TodayRange();
+        var studentIds = (await _studentDal.GetListAsync(s => s.GroupId == groupId)).Select(s => s.Id).ToList();
 
         var overview = new DashboardGroupOverviewDto
         {
             GroupName = group.Name,
-            TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-            StudentCount = studentCount,
-            AveragePage = Math.Round(averagePage, 2),
-            TodayPresent = todayPresent,
-            TodayAbsent = todayAbsent
+            TeacherName = group.TeacherName,
+            StudentCount = studentIds.Count,
+            AveragePage = Math.Round(await _studentDal.GetAverageCompletedPagesAsync(groupId), 2),
+            TodayPresent = await _attendanceDal.CountAsync(a =>
+                studentIds.Contains(a.StudentId) && a.Date >= today && a.Date < tomorrow && AttendedStatuses.Contains(a.Status)),
+            TodayAbsent = await _attendanceDal.CountAsync(a =>
+                studentIds.Contains(a.StudentId) && a.Date >= today && a.Date < tomorrow && a.Status == AttendanceStatus.Absent)
         };
 
         return new SuccessDataResult<DashboardGroupOverviewDto>(overview, "Sınıf özeti getirildi.");
     }
+
+    private static (DateTime Today, DateTime Tomorrow) TodayRange()
+    {
+        var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+        return (today, today.AddDays(1));
+    }
+
+    private static double Percentage(int part, int total) =>
+        total > 0 ? Math.Round((double)part / total * 100, 2) : 0;
 }

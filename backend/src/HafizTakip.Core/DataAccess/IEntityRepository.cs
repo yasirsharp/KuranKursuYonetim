@@ -1,5 +1,7 @@
 using System.Linq.Expressions;
 using HafizTakip.Core.Entities;
+using HafizTakip.Core.Utilities.Requests;
+using HafizTakip.Core.Utilities.Results;
 
 namespace HafizTakip.Core.DataAccess;
 
@@ -15,6 +17,16 @@ public interface IEntityRepository<T> where T : class, IEntity, new()
     Task<bool> AnyAsync(Expression<Func<T, bool>> filter);
 
     Task<int> CountAsync(Expression<Func<T, bool>>? filter = null);
+
+    /// <summary>
+    /// Veritabanında filtreler, sıralar, projeksiyon yapar ve sayfalar (ilişkisiz basit listeler için).
+    /// İlişkili tablolardan ad vb. gereken listeler için ilgili DAL'daki detay sorgusunu kullanın.
+    /// </summary>
+    Task<PagedResult<TResult>> GetPagedAsync<TResult>(
+        Expression<Func<T, bool>>? filter,
+        Func<IQueryable<T>, IOrderedQueryable<T>> orderBy,
+        Expression<Func<T, TResult>> selector,
+        PaginationParams paging);
 
     // Hemen kaydeden metotlar (tek kayıtlık basit işlemler için)
     Task AddAsync(T entity);

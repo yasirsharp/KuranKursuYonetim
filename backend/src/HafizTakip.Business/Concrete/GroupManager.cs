@@ -27,51 +27,16 @@ public class GroupManager : IGroupService
 
     public async Task<IDataResult<PagedResult<GroupDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var groups = await _groupDal.GetListAsync();
-        
-        var totalCount = groups.Count;
-        var pagedList = groups
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<GroupDto>();
-        foreach (var g in pagedList)
-        {
-            var teacher = await _userDal.GetAsync(u => u.Id == g.TeacherId);
-            dtoList.Add(new GroupDto
-            {
-                Id = g.Id,
-                TenantId = g.TenantId,
-                TeacherId = g.TeacherId,
-                TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-                Name = g.Name,
-                Description = g.Description
-            });
-        }
-
-        var result = new PagedResult<GroupDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _groupDal.GetGroupDetailsPagedAsync(paginationParams);
         return new SuccessDataResult<PagedResult<GroupDto>>(result, "Sınıflar listelendi.");
     }
 
     public async Task<IDataResult<GroupDto>> GetByIdAsync(Guid id)
     {
-        var g = await _groupDal.GetAsync(x => x.Id == id);
-        if (g == null) return new ErrorDataResult<GroupDto>("Sınıf bulunamadı.");
-
-        var teacher = await _userDal.GetAsync(u => u.Id == g.TeacherId);
-        
-        var dto = new GroupDto
-        {
-            Id = g.Id,
-            TenantId = g.TenantId,
-            TeacherId = g.TeacherId,
-            TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-            Name = g.Name,
-            Description = g.Description
-        };
-
-        return new SuccessDataResult<GroupDto>(dto, "Sınıf getirildi.");
+        var dto = await _groupDal.GetGroupDetailAsync(id);
+        return dto == null
+            ? new ErrorDataResult<GroupDto>("Sınıf bulunamadı.", ResultErrorType.NotFound)
+            : new SuccessDataResult<GroupDto>(dto, "Sınıf getirildi.");
     }
 
     [ValidationAspect(typeof(CreateGroupValidator))]

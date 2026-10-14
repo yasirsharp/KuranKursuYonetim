@@ -20,9 +20,9 @@ public class AttendanceController : ApiControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] PaginationParams paginationParams)
+    public async Task<IActionResult> GetAll([FromQuery] AttendanceFilter filter, [FromQuery] PaginationParams paginationParams)
     {
-        var result = await _attendanceService.GetAllAsync(paginationParams);
+        var result = await _attendanceService.GetAllAsync(filter, paginationParams);
         return HandleResult(result);
     }
 

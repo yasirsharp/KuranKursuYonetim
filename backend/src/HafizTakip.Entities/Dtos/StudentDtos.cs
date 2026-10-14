@@ -39,3 +39,12 @@ public class UpdateStudentDto : IDto
     public string Status { get; set; } = string.Empty;
     public bool IsBoarder { get; set; }
 }
+
+/// <summary>Öğrenci listesi filtreleri (query string'den bağlanır).</summary>
+public class StudentFilter : IDto
+{
+    /// <summary>Ad, soyad veya kimlik numarasında arar.</summary>
+    public string? Search { get; set; }
+    public Guid? GroupId { get; set; }
+    public string? Status { get; set; }
+}

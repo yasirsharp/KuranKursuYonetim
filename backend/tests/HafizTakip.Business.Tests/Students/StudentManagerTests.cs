@@ -4,6 +4,7 @@ using HafizTakip.Business.Concrete;
 using HafizTakip.Core.Entities;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Requests;
+using HafizTakip.Core.Utilities.Results;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
@@ -119,35 +120,24 @@ public class StudentManagerTests
     }
 
     [Fact]
-    public async Task GetAllAsync_ShouldResolveGroupNamesAndReturnPagedResult()
+    public async Task GetAllAsync_ShouldDelegateFilterAndPagingToSingleDatabaseQuery()
     {
-        // Arrange
-        var groupId = Guid.NewGuid();
-        var group = new Group { Id = groupId, Name = "A Sınıfı" };
-
-        var students = new List<Student>
-        {
-            new() { Id = Guid.NewGuid(), FirstName = "Ahmet", LastName = "Yılmaz", GroupId = groupId },
-            new() { Id = Guid.NewGuid(), FirstName = "Mehmet", LastName = "Kaya", GroupId = null }
-        };
+        // Arrange: grup adı birleştirmesi ve sayfalama DAL'daki tek sorguda yapılır (N+1 yok)
+        var filter = new StudentFilter { Search = "Ahmet", GroupId = Guid.NewGuid() };
+        var pagination = new PaginationParams { Page = 2, PageSize = 10 };
+        var page = new PagedResult<StudentDto>(new List<StudentDto> { new() { FirstName = "Ahmet", GroupName = "A Sınıfı" } }, 11, 2, 10);
 
         _studentDalMock
-            .Setup(s => s.GetListAsync(null))
-            .ReturnsAsync(students);
-
-        _groupDalMock
-            .Setup(g => g.GetAsync(It.IsAny<Expression<Func<Group, bool>>>()))
-            .ReturnsAsync(group);
-
-        var pagination = new PaginationParams { Page = 1, PageSize = 10 };
+            .Setup(s => s.GetStudentDetailsPagedAsync(filter, null, pagination))
+            .ReturnsAsync(page);
 
         // Act
-        var result = await _studentManager.GetAllAsync(pagination);
+        var result = await _studentManager.GetAllAsync(filter, pagination);
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Data.Data.Should().HaveCount(2);
-        result.Data.Data.First(s => s.FirstName == "Ahmet").GroupName.Should().Be("A Sınıfı");
-        result.Data.Data.First(s => s.FirstName == "Mehmet").GroupName.Should().Be("Sınıfsız");
+        result.Data.Should().BeSameAs(page);
+        _groupDalMock.Verify(g => g.GetAsync(It.IsAny<Expression<Func<Group, bool>>>()), Times.Never);
+        _studentDalMock.Verify(s => s.GetListAsync(It.IsAny<Expression<Func<Student, bool>>>()), Times.Never);
     }
 }

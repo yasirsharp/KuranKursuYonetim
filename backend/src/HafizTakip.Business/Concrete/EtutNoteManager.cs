@@ -34,38 +34,7 @@ public class EtutNoteManager : IEtutNoteService
     public async Task<IDataResult<PagedResult<EtutNoteDto>>> GetAllAsync(PaginationParams paginationParams)
     {
         var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
-        var notes = scopeIds == null
-            ? await _etutNoteDal.GetListAsync()
-            : await _etutNoteDal.GetListAsync(n => scopeIds.Contains(n.StudentId));
-        
-        var totalCount = notes.Count;
-        var pagedList = notes
-            .OrderByDescending(x => x.NoteDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var dtoList = new List<EtutNoteDto>();
-        foreach (var note in pagedList)
-        {
-            var student = await _studentDal.GetAsync(s => s.Id == note.StudentId);
-            var teacher = await _userDal.GetAsync(u => u.Id == note.TeacherId);
-            
-            dtoList.Add(new EtutNoteDto
-            {
-                Id = note.Id,
-                TenantId = note.TenantId,
-                StudentId = note.StudentId,
-                StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-                TeacherId = note.TeacherId,
-                TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-                NoteDate = note.NoteDate,
-                HomeworkStatus = note.HomeworkStatus,
-                TeacherNotes = note.TeacherNotes
-            });
-        }
-
-        var result = new PagedResult<EtutNoteDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
+        var result = await _etutNoteDal.GetEtutNoteDetailsPagedAsync(new EtutNoteFilter(), scopeIds, paginationParams);
         return new SuccessDataResult<PagedResult<EtutNoteDto>>(result, "Etüt notları listelendi.");
     }
 
@@ -74,62 +43,15 @@ public class EtutNoteManager : IEtutNoteService
         if (!await _accessScope.CanAccessStudentAsync(studentId))
             return new ErrorDataResult<PagedResult<EtutNoteDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
 
-        var notes = await _etutNoteDal.GetListAsync(n => n.StudentId == studentId);
-        
-        var totalCount = notes.Count;
-        var pagedList = notes
-            .OrderByDescending(x => x.NoteDate)
-            .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
-            .Take(paginationParams.PageSize)
-            .ToList();
-
-        var student = await _studentDal.GetAsync(s => s.Id == studentId);
-        var studentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor";
-
-        var dtoList = new List<EtutNoteDto>();
-        foreach (var note in pagedList)
-        {
-            var teacher = await _userDal.GetAsync(u => u.Id == note.TeacherId);
-            
-            dtoList.Add(new EtutNoteDto
-            {
-                Id = note.Id,
-                TenantId = note.TenantId,
-                StudentId = note.StudentId,
-                StudentName = studentName,
-                TeacherId = note.TeacherId,
-                TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-                NoteDate = note.NoteDate,
-                HomeworkStatus = note.HomeworkStatus,
-                TeacherNotes = note.TeacherNotes
-            });
-        }
-
-        var result = new PagedResult<EtutNoteDto>(dtoList, totalCount, paginationParams.Page, paginationParams.PageSize);
-        return new SuccessDataResult<PagedResult<EtutNoteDto>>(result, "Öğrenci etüt notları listelendi.");
+        var result = await _etutNoteDal.GetEtutNoteDetailsPagedAsync(new EtutNoteFilter { StudentId = studentId }, null, paginationParams);
+        return new SuccessDataResult<PagedResult<EtutNoteDto>>(result, "Öğrencinin etüt notları listelendi.");
     }
 
     public async Task<IDataResult<EtutNoteDto>> GetByIdAsync(Guid id)
     {
-        var note = await _etutNoteDal.GetAsync(n => n.Id == id);
-        if (note == null || !await _accessScope.CanAccessStudentAsync(note.StudentId))
+        var dto = await _etutNoteDal.GetEtutNoteDetailAsync(id);
+        if (dto == null || !await _accessScope.CanAccessStudentAsync(dto.StudentId))
             return new ErrorDataResult<EtutNoteDto>("Etüt notu bulunamadı.", ResultErrorType.NotFound);
-
-        var student = await _studentDal.GetAsync(s => s.Id == note.StudentId);
-        var teacher = await _userDal.GetAsync(u => u.Id == note.TeacherId);
-
-        var dto = new EtutNoteDto
-        {
-            Id = note.Id,
-            TenantId = note.TenantId,
-            StudentId = note.StudentId,
-            StudentName = student != null ? $"{student.FirstName} {student.LastName}" : "Bilinmiyor",
-            TeacherId = note.TeacherId,
-            TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
-            NoteDate = note.NoteDate,
-            HomeworkStatus = note.HomeworkStatus,
-            TeacherNotes = note.TeacherNotes
-        };
 
         return new SuccessDataResult<EtutNoteDto>(dto, "Etüt notu getirildi.");
     }

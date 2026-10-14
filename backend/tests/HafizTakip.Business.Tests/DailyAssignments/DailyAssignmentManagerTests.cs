@@ -50,40 +50,28 @@ public class DailyAssignmentManagerTests
     [Fact]
     public async Task GetEtutAssignmentsAsync_ShouldFilterByDateAndIsBoarderToday()
     {
-        // Arrange
+        // Arrange: etüt listesi = o gün yatılı kalan ve görevi hâlâ etüt hocasında olan öğrenciler
         var testDate = new DateTime(2026, 10, 12);
-        var studentId = Guid.NewGuid();
-
-        var assignments = new List<DailyAssignment>
-        {
-            new()
-            {
-                Id = Guid.NewGuid(),
-                TenantId = _testTenantId,
-                StudentId = studentId,
-                TeacherId = Guid.NewGuid(),
-                AssignmentDate = DateTime.SpecifyKind(testDate, DateTimeKind.Utc),
-                IsBoarderToday = true,
-                Status = "assigned",
-                AssignedTasks = "[]",
-                CompletedInEtut = "[]",
-                CompletedAtHome = "[]"
-            }
-        };
+        var pagination = new PaginationParams { Page = 1, PageSize = 10 };
+        var page = new PagedResult<DailyAssignmentDto>(
+            new List<DailyAssignmentDto> { new() { IsBoarderToday = true, Status = "assigned" } }, 1, 1, 10);
 
         _dailyAssignmentDalMock
-            .Setup(d => d.GetListAsync(It.IsAny<Expression<Func<DailyAssignment, bool>>>()))
-            .ReturnsAsync(assignments);
-
-        var pagination = new PaginationParams { Page = 1, PageSize = 10 };
+            .Setup(d => d.GetAssignmentDetailsPagedAsync(
+                It.Is<DailyAssignmentFilter>(f =>
+                    f.Date == testDate &&
+                    f.IsBoarderToday == true &&
+                    f.Status == "assigned"),
+                null,
+                pagination))
+            .ReturnsAsync(page);
 
         // Act
         var result = await _manager.GetEtutAssignmentsAsync(testDate, pagination);
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Data.Data.Should().HaveCount(1);
-        result.Data.Data.First().IsBoarderToday.Should().BeTrue();
+        result.Data.Should().BeSameAs(page);
     }
 
     [Fact]
