@@ -7,6 +7,7 @@ using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
+using HafizTakip.Business.Tests.Common;
 
 namespace HafizTakip.Business.Tests.Lessons;
 
@@ -37,7 +38,8 @@ public class LessonManagerTests
             _userDalMock.Object,
             _tenantContextMock.Object,
             _referencesMock.Object,
-            _currentUserMock.Object);
+            _currentUserMock.Object,
+            AccessScopes.Unrestricted());
     }
 
     [Fact]

@@ -50,8 +50,8 @@ public class InvoicesController : ApiControllerBase
     [HttpPut("status")]
     public async Task<IActionResult> UpdateStatus(UpdateInvoiceStatusDto updateInvoiceStatusDto)
     {
-        // TODO: Geli�mi� yetki (Authorization) ve validasyon kontrollerini g�zden ge�ir.
-        // WARNING: Soft-delete veya g�ncelleme i�lemlerinde TenantId izolasyonundan emin ol.
+        // TODO: Gelişmiş yetki (Authorization) ve validasyon kontrollerini gözden geçir.
+        // WARNING: Soft-delete veya güncelleme işlemlerinde TenantId izolasyonundan emin ol.
         var result = await _invoiceService.UpdateStatusAsync(updateInvoiceStatusDto);
         return HandleResult(result);
     }
@@ -59,8 +59,8 @@ public class InvoicesController : ApiControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        // TODO: Geli�mi� yetki (Authorization) ve validasyon kontrollerini g�zden ge�ir.
-        // WARNING: Soft-delete veya g�ncelleme i�lemlerinde TenantId izolasyonundan emin ol.
+        // TODO: Gelişmiş yetki (Authorization) ve validasyon kontrollerini gözden geçir.
+        // WARNING: Soft-delete veya güncelleme işlemlerinde TenantId izolasyonundan emin ol.
         var result = await _invoiceService.DeleteAsync(id);
         return HandleResult(result);
     }

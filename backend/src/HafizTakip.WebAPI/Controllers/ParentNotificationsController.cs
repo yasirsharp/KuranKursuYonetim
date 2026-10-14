@@ -9,7 +9,6 @@ namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-// TODO: Bildirim okuma yetkilerini bağlı veli-öğrenci ilişkisiyle sınırla.
 [Authorize(Policy = AuthorizationPolicies.TenantMember)]
 public class ParentNotificationsController : ApiControllerBase
 {

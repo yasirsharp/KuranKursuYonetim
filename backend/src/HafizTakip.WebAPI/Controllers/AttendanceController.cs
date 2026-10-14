@@ -9,7 +9,6 @@ namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-// TODO: Okuma uçlarına rol ve veli-öğrenci sahipliği denetimi ekle.
 [Authorize(Policy = AuthorizationPolicies.TenantMember)]
 public class AttendanceController : ApiControllerBase
 {
@@ -57,7 +56,6 @@ public class AttendanceController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpPut]
     [Authorize(Policy = AuthorizationPolicies.Teacher)]
@@ -67,7 +65,6 @@ public class AttendanceController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpDelete("{id}")]
     [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]

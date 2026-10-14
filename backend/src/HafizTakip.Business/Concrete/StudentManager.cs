@@ -16,19 +16,24 @@ public class StudentManager : IStudentService
     private readonly IGroupDal _groupDal;
     private readonly ITenantContext _tenantContext;
     private readonly ITenantReferenceValidator _references;
+    private readonly IStudentAccessScope _accessScope;
 
-    public StudentManager(IStudentDal studentDal, IGroupDal groupDal, ITenantContext tenantContext, ITenantReferenceValidator references)
+    public StudentManager(IStudentDal studentDal, IGroupDal groupDal, ITenantContext tenantContext, ITenantReferenceValidator references, IStudentAccessScope accessScope)
     {
         _studentDal = studentDal;
         _groupDal = groupDal;
         _tenantContext = tenantContext;
         _references = references;
+        _accessScope = accessScope;
     }
 
     public async Task<IDataResult<PagedResult<StudentDto>>> GetAllAsync(PaginationParams paginationParams)
     {
         // TODO: Sayfalama ve grup adlarını veritabanı sorgusuna taşı; mevcut akış tüm öğrencileri belleğe alıp grup başına ek sorgu çalıştırıyor.
-        var students = await _studentDal.GetListAsync();
+        var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
+        var students = scopeIds == null
+            ? await _studentDal.GetListAsync()
+            : await _studentDal.GetListAsync(s => scopeIds.Contains(s.Id));
         
         var totalCount = students.Count;
         var pagedList = students
@@ -69,7 +74,8 @@ public class StudentManager : IStudentService
     public async Task<IDataResult<StudentDto>> GetByIdAsync(Guid id)
     {
         var s = await _studentDal.GetAsync(x => x.Id == id);
-        if (s == null) return new ErrorDataResult<StudentDto>("Öğrenci bulunamadı.");
+        if (s == null || !await _accessScope.CanAccessStudentAsync(s.Id))
+            return new ErrorDataResult<StudentDto>("Öğrenci bulunamadı.", ResultErrorType.NotFound);
 
         string groupName = "Sınıfsız";
         if (s.GroupId.HasValue)

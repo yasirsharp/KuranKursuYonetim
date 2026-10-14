@@ -8,7 +8,6 @@ namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-// TODO: GET uçları tüm giriş yapmış rollere açık; rol bazlı erişim ve veli için yalnızca bağlı öğrencileri döndürme kuralı ekle.
 [Authorize(Policy = AuthorizationPolicies.TenantMember)]
 public class StudentsController : ApiControllerBase
 {
@@ -41,7 +40,6 @@ public class StudentsController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpPut]
     [Authorize(Policy = AuthorizationPolicies.Teacher)]
@@ -51,7 +49,6 @@ public class StudentsController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpDelete("{id}")]
     [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]

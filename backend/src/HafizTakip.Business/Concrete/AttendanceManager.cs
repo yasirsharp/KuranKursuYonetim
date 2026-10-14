@@ -20,19 +20,24 @@ public class AttendanceManager : IAttendanceService
     private readonly IStudentDal _studentDal;
     private readonly ITenantContext _tenantContext;
     private readonly ITenantReferenceValidator _references;
+    private readonly IStudentAccessScope _accessScope;
 
-    public AttendanceManager(IAttendanceDal attendanceDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references)
+    public AttendanceManager(IAttendanceDal attendanceDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references, IStudentAccessScope accessScope)
     {
         _attendanceDal = attendanceDal;
         _studentDal = studentDal;
         _tenantContext = tenantContext;
         _references = references;
+        _accessScope = accessScope;
     }
 
     public async Task<IDataResult<PagedResult<AttendanceDto>>> GetAllAsync(PaginationParams paginationParams)
     {
         // TODO: Veritabanında sayfala ve öğrenci adlarını toplu/projection sorgusuyla getir; mevcut akış tüm kayıtları yükleyip N+1 sorgu çalıştırıyor.
-        var attendances = await _attendanceDal.GetListAsync();
+        var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
+        var attendances = scopeIds == null
+            ? await _attendanceDal.GetListAsync()
+            : await _attendanceDal.GetListAsync(a => scopeIds.Contains(a.StudentId));
         
         var totalCount = attendances.Count;
         var pagedList = attendances
@@ -63,6 +68,9 @@ public class AttendanceManager : IAttendanceService
 
     public async Task<IDataResult<PagedResult<AttendanceDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
     {
+        if (!await _accessScope.CanAccessStudentAsync(studentId))
+            return new ErrorDataResult<PagedResult<AttendanceDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
+
         var attendances = await _attendanceDal.GetListAsync(a => a.StudentId == studentId);
         
         var totalCount = attendances.Count;
@@ -97,7 +105,8 @@ public class AttendanceManager : IAttendanceService
     public async Task<IDataResult<AttendanceDto>> GetByIdAsync(Guid id)
     {
         var a = await _attendanceDal.GetAsync(x => x.Id == id);
-        if (a == null) return new ErrorDataResult<AttendanceDto>("Yoklama kaydı bulunamadı.");
+        if (a == null || !await _accessScope.CanAccessStudentAsync(a.StudentId))
+            return new ErrorDataResult<AttendanceDto>("Yoklama kaydı bulunamadı.", ResultErrorType.NotFound);
 
         var student = await _studentDal.GetAsync(s => s.Id == a.StudentId);
         

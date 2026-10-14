@@ -16,8 +16,9 @@ public class EtutNoteManager : IEtutNoteService
     private readonly ITenantContext _tenantContext;
     private readonly ITenantReferenceValidator _references;
     private readonly ICurrentUser _currentUser;
+    private readonly IStudentAccessScope _accessScope;
 
-    public EtutNoteManager(IEtutNoteDal etutNoteDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser)
+    public EtutNoteManager(IEtutNoteDal etutNoteDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser, IStudentAccessScope accessScope)
     {
         _etutNoteDal = etutNoteDal;
         _studentDal = studentDal;
@@ -25,11 +26,15 @@ public class EtutNoteManager : IEtutNoteService
         _tenantContext = tenantContext;
         _currentUser = currentUser;
         _references = references;
+        _accessScope = accessScope;
     }
 
     public async Task<IDataResult<PagedResult<EtutNoteDto>>> GetAllAsync(PaginationParams paginationParams)
     {
-        var notes = await _etutNoteDal.GetListAsync();
+        var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
+        var notes = scopeIds == null
+            ? await _etutNoteDal.GetListAsync()
+            : await _etutNoteDal.GetListAsync(n => scopeIds.Contains(n.StudentId));
         
         var totalCount = notes.Count;
         var pagedList = notes
@@ -64,6 +69,9 @@ public class EtutNoteManager : IEtutNoteService
 
     public async Task<IDataResult<PagedResult<EtutNoteDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
     {
+        if (!await _accessScope.CanAccessStudentAsync(studentId))
+            return new ErrorDataResult<PagedResult<EtutNoteDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
+
         var notes = await _etutNoteDal.GetListAsync(n => n.StudentId == studentId);
         
         var totalCount = notes.Count;
@@ -102,7 +110,8 @@ public class EtutNoteManager : IEtutNoteService
     public async Task<IDataResult<EtutNoteDto>> GetByIdAsync(Guid id)
     {
         var note = await _etutNoteDal.GetAsync(n => n.Id == id);
-        if (note == null) return new ErrorDataResult<EtutNoteDto>("Etüt notu bulunamadı.");
+        if (note == null || !await _accessScope.CanAccessStudentAsync(note.StudentId))
+            return new ErrorDataResult<EtutNoteDto>("Etüt notu bulunamadı.", ResultErrorType.NotFound);
 
         var student = await _studentDal.GetAsync(s => s.Id == note.StudentId);
         var teacher = await _userDal.GetAsync(u => u.Id == note.TeacherId);

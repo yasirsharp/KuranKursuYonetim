@@ -8,6 +8,7 @@ using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
+using HafizTakip.Business.Tests.Common;
 
 namespace HafizTakip.Business.Tests.DailyAssignments;
 
@@ -40,7 +41,8 @@ public class DailyAssignmentManagerTests
             _userDalMock.Object,
             _tenantContextMock.Object,
             _notificationServiceMock.Object,
-            _currentUserMock.Object);
+            _currentUserMock.Object,
+            AccessScopes.Unrestricted());
     }
 
     [Fact]

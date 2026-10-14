@@ -6,6 +6,7 @@ using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
+using HafizTakip.Business.Tests.Common;
 
 namespace HafizTakip.Business.Tests.Attendance;
 
@@ -32,7 +33,8 @@ public class AttendanceManagerTests
             _attendanceDalMock.Object,
             _studentDalMock.Object,
             _tenantContextMock.Object,
-            _referencesMock.Object);
+            _referencesMock.Object,
+            AccessScopes.Unrestricted());
     }
 
     [Fact]

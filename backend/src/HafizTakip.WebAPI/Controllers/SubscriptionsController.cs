@@ -50,8 +50,8 @@ public class SubscriptionsController : ApiControllerBase
     [HttpPut]
     public async Task<IActionResult> Update(UpdateSubscriptionDto updateSubscriptionDto)
     {
-        // TODO: Geli�mi� yetki (Authorization) ve validasyon kontrollerini g�zden ge�ir.
-        // WARNING: Soft-delete veya g�ncelleme i�lemlerinde TenantId izolasyonundan emin ol.
+        // TODO: Gelişmiş yetki (Authorization) ve validasyon kontrollerini gözden geçir.
+        // WARNING: Soft-delete veya güncelleme işlemlerinde TenantId izolasyonundan emin ol.
         var result = await _subscriptionService.UpdateAsync(updateSubscriptionDto);
         return HandleResult(result);
     }
@@ -59,8 +59,8 @@ public class SubscriptionsController : ApiControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        // TODO: Geli�mi� yetki (Authorization) ve validasyon kontrollerini g�zden ge�ir.
-        // WARNING: Soft-delete veya g�ncelleme i�lemlerinde TenantId izolasyonundan emin ol.
+        // TODO: Gelişmiş yetki (Authorization) ve validasyon kontrollerini gözden geçir.
+        // WARNING: Soft-delete veya güncelleme işlemlerinde TenantId izolasyonundan emin ol.
         var result = await _subscriptionService.DeleteAsync(id);
         return HandleResult(result);
     }

@@ -15,19 +15,24 @@ public class ExamResultManager : IExamResultService
     private readonly IStudentDal _studentDal;
     private readonly ITenantContext _tenantContext;
     private readonly ITenantReferenceValidator _references;
+    private readonly IStudentAccessScope _accessScope;
 
-    public ExamResultManager(IExamResultDal examResultDal, IExamDal examDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references)
+    public ExamResultManager(IExamResultDal examResultDal, IExamDal examDal, IStudentDal studentDal, ITenantContext tenantContext, ITenantReferenceValidator references, IStudentAccessScope accessScope)
     {
         _examResultDal = examResultDal;
         _examDal = examDal;
         _studentDal = studentDal;
         _tenantContext = tenantContext;
         _references = references;
+        _accessScope = accessScope;
     }
 
     public async Task<IDataResult<PagedResult<ExamResultDto>>> GetByExamIdAsync(Guid examId, PaginationParams paginationParams)
     {
-        var results = await _examResultDal.GetListAsync(r => r.ExamId == examId);
+        var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
+        var results = scopeIds == null
+            ? await _examResultDal.GetListAsync(r => r.ExamId == examId)
+            : await _examResultDal.GetListAsync(r => r.ExamId == examId && scopeIds.Contains(r.StudentId));
         
         var totalCount = results.Count;
         var pagedList = results
@@ -64,6 +69,9 @@ public class ExamResultManager : IExamResultService
 
     public async Task<IDataResult<PagedResult<ExamResultDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
     {
+        if (!await _accessScope.CanAccessStudentAsync(studentId))
+            return new ErrorDataResult<PagedResult<ExamResultDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
+
         var results = await _examResultDal.GetListAsync(r => r.StudentId == studentId);
         
         var totalCount = results.Count;
@@ -101,7 +109,8 @@ public class ExamResultManager : IExamResultService
     public async Task<IDataResult<ExamResultDto>> GetByIdAsync(Guid id)
     {
         var result = await _examResultDal.GetAsync(r => r.Id == id);
-        if (result == null) return new ErrorDataResult<ExamResultDto>("Sınav sonucu bulunamadı.");
+        if (result == null || !await _accessScope.CanAccessStudentAsync(result.StudentId))
+            return new ErrorDataResult<ExamResultDto>("Sınav sonucu bulunamadı.", ResultErrorType.NotFound);
 
         var exam = await _examDal.GetAsync(e => e.Id == result.ExamId);
         var student = await _studentDal.GetAsync(s => s.Id == result.StudentId);

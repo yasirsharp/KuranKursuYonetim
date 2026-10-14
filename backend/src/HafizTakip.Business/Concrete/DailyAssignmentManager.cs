@@ -17,6 +17,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
     private readonly ITenantContext _tenantContext;
     private readonly IParentNotificationService _notificationService;
     private readonly ICurrentUser _currentUser;
+    private readonly IStudentAccessScope _accessScope;
 
     public DailyAssignmentManager(
         IDailyAssignmentDal dailyAssignmentDal, 
@@ -24,7 +25,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
         IUserDal userDal, 
         ITenantContext tenantContext,
         IParentNotificationService notificationService,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser, IStudentAccessScope accessScope)
     {
         _dailyAssignmentDal = dailyAssignmentDal;
         _studentDal = studentDal;
@@ -32,6 +33,7 @@ public class DailyAssignmentManager : IDailyAssignmentService
         _tenantContext = tenantContext;
         _notificationService = notificationService;
         _currentUser = currentUser;
+        _accessScope = accessScope;
     }
 
     private Guid GetCurrentUserId() => _currentUser.UserId ?? Guid.Empty;
@@ -44,6 +46,9 @@ public class DailyAssignmentManager : IDailyAssignmentService
 
     public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
     {
+        if (!await _accessScope.CanAccessStudentAsync(studentId))
+            return new ErrorDataResult<PagedResult<DailyAssignmentDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
+
         var assignments = await _dailyAssignmentDal.GetListAsync(a => a.StudentId == studentId);
         return await CreatePagedResult(assignments, paginationParams);
     }
@@ -59,7 +64,8 @@ public class DailyAssignmentManager : IDailyAssignmentService
     public async Task<IDataResult<DailyAssignmentDto>> GetByIdAsync(Guid id)
     {
         var assignment = await _dailyAssignmentDal.GetAsync(a => a.Id == id);
-        if (assignment == null) return new ErrorDataResult<DailyAssignmentDto>("Görev bulunamadı.");
+        if (assignment == null || !await _accessScope.CanAccessStudentAsync(assignment.StudentId))
+            return new ErrorDataResult<DailyAssignmentDto>("Görev bulunamadı.", ResultErrorType.NotFound);
 
         var student = await _studentDal.GetAsync(s => s.Id == assignment.StudentId);
         var teacher = await _userDal.GetAsync(t => t.Id == assignment.TeacherId);
@@ -155,7 +161,8 @@ public class DailyAssignmentManager : IDailyAssignmentService
     public async Task<Core.Utilities.Results.IResult> CompleteHomeAsync(CompleteHomeAssignmentDto dto)
     {
         var assignment = await _dailyAssignmentDal.GetAsync(a => a.Id == dto.Id);
-        if (assignment == null) return new ErrorResult("Görev bulunamadı.");
+        if (assignment == null || !await _accessScope.CanAccessStudentAsync(assignment.StudentId))
+            return new ErrorResult("Görev bulunamadı.", ResultErrorType.NotFound);
         if (assignment.Status != "sent_to_parent") return new ErrorResult("Bu görev şu an veli onayında değil.");
 
         assignment.CompletedAtHome = JsonSerializer.Serialize(dto.CompletedTaskIds);

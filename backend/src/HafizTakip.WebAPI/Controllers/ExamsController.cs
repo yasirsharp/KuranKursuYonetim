@@ -9,7 +9,7 @@ namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-// TODO: Sınav/sonuç okuma uçlarını rol ve veli-öğrenci sahipliği bazında sınırla.
+// TODO: Sınav listesi tüm kurs üyelerine açık; veliye yalnızca çocuğunun grubunun sınavlarını göster (sonuçlar zaten kapsamlı).
 [Authorize(Policy = AuthorizationPolicies.TenantMember)]
 public class ExamsController : ApiControllerBase
 {
@@ -51,7 +51,6 @@ public class ExamsController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpPut]
     [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
@@ -61,7 +60,6 @@ public class ExamsController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpDelete("{id}")]
     [Authorize(Policy = AuthorizationPolicies.TenantAdmin)]
@@ -95,7 +93,6 @@ public class ExamsController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     [HttpPut("results")]
     [Authorize(Policy = AuthorizationPolicies.Teacher)]
     public async Task<IActionResult> UpdateResult(UpdateExamResultDto updateExamResultDto)
@@ -104,7 +101,6 @@ public class ExamsController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     [HttpDelete("results/{id}")]
     [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
     public async Task<IActionResult> DeleteResult(Guid id)

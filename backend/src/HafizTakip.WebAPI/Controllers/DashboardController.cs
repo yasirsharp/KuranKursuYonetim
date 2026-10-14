@@ -7,7 +7,6 @@ namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-// TODO: Özet ve öğrenci ilerleme uçlarını rol/kayıt sahipliği bazında sınırla.
 [Authorize(Policy = AuthorizationPolicies.Teacher)]
 public class DashboardController : ApiControllerBase
 {

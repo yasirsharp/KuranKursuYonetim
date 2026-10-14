@@ -9,7 +9,6 @@ namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-// TODO: Etüt notları için rol ve öğrenci sahipliği denetimlerini tamamla.
 [Authorize(Policy = AuthorizationPolicies.TenantMember)]
 public class EtutNotesController : ApiControllerBase
 {
@@ -49,7 +48,6 @@ public class EtutNotesController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpPut]
     [Authorize(Policy = AuthorizationPolicies.Teacher)]
@@ -59,7 +57,6 @@ public class EtutNotesController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpDelete("{id}")]
     [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]

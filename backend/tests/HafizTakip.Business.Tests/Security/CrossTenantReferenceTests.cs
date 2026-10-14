@@ -6,6 +6,7 @@ using HafizTakip.Core.Utilities.Results;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
+using HafizTakip.Business.Tests.Common;
 
 namespace HafizTakip.Business.Tests.Security;
 
@@ -33,7 +34,8 @@ public class CrossTenantReferenceTests
     {
         var attendanceDal = new Mock<IAttendanceDal>();
         _references.Setup(r => r.EnsureStudentsAsync(It.IsAny<IReadOnlyCollection<Guid>>())).ReturnsAsync(NotFound);
-        var manager = new AttendanceManager(attendanceDal.Object, new Mock<IStudentDal>().Object, _tenantContext.Object, _references.Object);
+        var manager = new AttendanceManager(attendanceDal.Object, new Mock<IStudentDal>().Object, _tenantContext.Object, _references.Object,
+            AccessScopes.Unrestricted());
 
         var result = await manager.AddBulkAsync(new BulkAttendanceDto
         {
@@ -87,7 +89,8 @@ public class CrossTenantReferenceTests
         var resultDal = new Mock<IExamResultDal>();
         _references.Setup(r => r.EnsureExamAsync(It.IsAny<Guid>())).ReturnsAsync(NotFound);
         var manager = new ExamResultManager(resultDal.Object, new Mock<IExamDal>().Object,
-            new Mock<IStudentDal>().Object, _tenantContext.Object, _references.Object);
+            new Mock<IStudentDal>().Object, _tenantContext.Object, _references.Object,
+            AccessScopes.Unrestricted());
 
         var result = await manager.AddAsync(new CreateExamResultDto { ExamId = Guid.NewGuid(), StudentId = Guid.NewGuid(), Score = 90 });
 
@@ -139,7 +142,8 @@ public class CrossTenantReferenceTests
         lessonDal.Setup(d => d.GetAsync(It.IsAny<Expression<Func<Lesson, bool>>>())).ReturnsAsync((Lesson?)null);
         studentDal.Setup(d => d.GetAsync(It.IsAny<Expression<Func<Student, bool>>>())).ReturnsAsync(new Student { Id = Guid.NewGuid() });
         var manager = new LessonManager(lessonDal.Object, studentDal.Object, new Mock<IUserDal>().Object,
-            _tenantContext.Object, _references.Object, _currentUser.Object);
+            _tenantContext.Object, _references.Object, _currentUser.Object,
+            AccessScopes.Unrestricted());
         return (manager, lessonDal);
     }
 }

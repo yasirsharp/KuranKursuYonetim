@@ -8,7 +8,6 @@ namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-// TODO: Kullanıcı listesindeki telefon/e-posta verileri için okuma rollerini daralt.
 [Authorize(Policy = AuthorizationPolicies.Teacher)]
 public class UsersController : ApiControllerBase
 {
@@ -41,7 +40,6 @@ public class UsersController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpPut]
     [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
@@ -51,7 +49,6 @@ public class UsersController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpDelete("{id}")]
     [Authorize(Policy = AuthorizationPolicies.TenantAdmin)]

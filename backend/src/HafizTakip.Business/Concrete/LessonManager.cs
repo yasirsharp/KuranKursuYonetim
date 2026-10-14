@@ -22,8 +22,9 @@ public class LessonManager : ILessonService
     private readonly ITenantContext _tenantContext;
     private readonly ITenantReferenceValidator _references;
     private readonly ICurrentUser _currentUser;
+    private readonly IStudentAccessScope _accessScope;
 
-    public LessonManager(ILessonDal lessonDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser)
+    public LessonManager(ILessonDal lessonDal, IStudentDal studentDal, IUserDal userDal, ITenantContext tenantContext, ITenantReferenceValidator references, ICurrentUser currentUser, IStudentAccessScope accessScope)
     {
         _lessonDal = lessonDal;
         _studentDal = studentDal;
@@ -31,12 +32,16 @@ public class LessonManager : ILessonService
         _tenantContext = tenantContext;
         _currentUser = currentUser;
         _references = references;
+        _accessScope = accessScope;
     }
 
     public async Task<IDataResult<PagedResult<LessonDto>>> GetAllAsync(PaginationParams paginationParams)
     {
         // TODO: Sayfalama/projection ile birlikte öğrenci ve öğretmen adlarını tek sorguda getir; mevcut döngü N+1 sorgu üretir.
-        var lessons = await _lessonDal.GetListAsync();
+        var scopeIds = await _accessScope.GetAccessibleStudentIdsAsync();
+        var lessons = scopeIds == null
+            ? await _lessonDal.GetListAsync()
+            : await _lessonDal.GetListAsync(l => scopeIds.Contains(l.StudentId));
         
         var totalCount = lessons.Count;
         var pagedLessons = lessons
@@ -76,6 +81,9 @@ public class LessonManager : ILessonService
 
     public async Task<IDataResult<PagedResult<LessonDto>>> GetByStudentIdAsync(Guid studentId, PaginationParams paginationParams)
     {
+        if (!await _accessScope.CanAccessStudentAsync(studentId))
+            return new ErrorDataResult<PagedResult<LessonDto>>("Bu öğrencinin bilgilerine erişim yetkiniz yok.", ResultErrorType.Forbidden);
+
         var lessons = await _lessonDal.GetListAsync(l => l.StudentId == studentId);
         
         var totalCount = lessons.Count;
@@ -118,7 +126,8 @@ public class LessonManager : ILessonService
     public async Task<IDataResult<LessonDto>> GetByIdAsync(Guid id)
     {
         var l = await _lessonDal.GetAsync(x => x.Id == id);
-        if (l == null) return new ErrorDataResult<LessonDto>("Ders bulunamadı.");
+        if (l == null || !await _accessScope.CanAccessStudentAsync(l.StudentId))
+            return new ErrorDataResult<LessonDto>("Ders bulunamadı.", ResultErrorType.NotFound);
 
         var student = await _studentDal.GetAsync(s => s.Id == l.StudentId);
         var teacher = await _userDal.GetAsync(u => u.Id == l.TeacherId);
