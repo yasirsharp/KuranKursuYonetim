@@ -1,2 +1,17 @@
 /.agents
 /.vscode
+
+# .NET build çıktıları
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+
+# Yerel ayar / secret dosyaları
+appsettings.*.local.json
+
+# Node
+node_modules/
+dist/
