@@ -56,7 +56,9 @@ public class DailyAssignmentManager : IDailyAssignmentService
 
     public async Task<IDataResult<PagedResult<DailyAssignmentDto>>> GetEtutAssignmentsAsync(DateTime date, PaginationParams paginationParams)
     {
-        var assignments = await _dailyAssignmentDal.GetListAsync(a => a.AssignmentDate.Date == date.Date && a.IsBoarderToday && a.Status == "assigned");
+        var targetDateUtc = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
+        var nextDateUtc = targetDateUtc.AddDays(1);
+        var assignments = await _dailyAssignmentDal.GetListAsync(a => a.AssignmentDate >= targetDateUtc && a.AssignmentDate < nextDateUtc && a.IsBoarderToday && a.Status == "assigned");
         return await CreatePagedResult(assignments, paginationParams);
     }
 
@@ -78,9 +80,9 @@ public class DailyAssignmentManager : IDailyAssignmentService
             TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
             AssignmentDate = assignment.AssignmentDate,
             IsBoarderToday = assignment.IsBoarderToday,
-            AssignedTasks = JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new(),
-            CompletedInEtut = JsonSerializer.Deserialize<List<string>>(assignment.CompletedInEtut) ?? new(),
-            CompletedAtHome = JsonSerializer.Deserialize<List<string>>(assignment.CompletedAtHome) ?? new(),
+            AssignedTasks = !string.IsNullOrWhiteSpace(assignment.AssignedTasks) ? (JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new()) : new(),
+            CompletedInEtut = !string.IsNullOrWhiteSpace(assignment.CompletedInEtut) ? (JsonSerializer.Deserialize<List<string>>(assignment.CompletedInEtut) ?? new()) : new(),
+            CompletedAtHome = !string.IsNullOrWhiteSpace(assignment.CompletedAtHome) ? (JsonSerializer.Deserialize<List<string>>(assignment.CompletedAtHome) ?? new()) : new(),
             Status = assignment.Status,
             EtutTeacherNote = assignment.EtutTeacherNote,
             ParentNote = assignment.ParentNote
@@ -198,9 +200,9 @@ public class DailyAssignmentManager : IDailyAssignmentService
                 TeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName}" : "Bilinmiyor",
                 AssignmentDate = assignment.AssignmentDate,
                 IsBoarderToday = assignment.IsBoarderToday,
-                AssignedTasks = JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new(),
-                CompletedInEtut = JsonSerializer.Deserialize<List<string>>(assignment.CompletedInEtut) ?? new(),
-                CompletedAtHome = JsonSerializer.Deserialize<List<string>>(assignment.CompletedAtHome) ?? new(),
+                AssignedTasks = !string.IsNullOrWhiteSpace(assignment.AssignedTasks) ? (JsonSerializer.Deserialize<List<AssignmentTaskItem>>(assignment.AssignedTasks) ?? new()) : new(),
+                CompletedInEtut = !string.IsNullOrWhiteSpace(assignment.CompletedInEtut) ? (JsonSerializer.Deserialize<List<string>>(assignment.CompletedInEtut) ?? new()) : new(),
+                CompletedAtHome = !string.IsNullOrWhiteSpace(assignment.CompletedAtHome) ? (JsonSerializer.Deserialize<List<string>>(assignment.CompletedAtHome) ?? new()) : new(),
                 Status = assignment.Status,
                 EtutTeacherNote = assignment.EtutTeacherNote,
                 ParentNote = assignment.ParentNote

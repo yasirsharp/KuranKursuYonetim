@@ -74,6 +74,6 @@ public class AutofacBusinessModule : Module
             .EnableInterfaceInterceptors(new ProxyGenerationOptions()
             {
                 Selector = new AspectInterceptorSelector()
-            }).SingleInstance();
+            }).InstancePerLifetimeScope();
     }
 }

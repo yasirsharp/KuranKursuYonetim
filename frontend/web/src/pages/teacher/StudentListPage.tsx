@@ -74,7 +74,7 @@ export default function StudentListPage() {
             return (
               <div key={student.id} className="student-card" onClick={() => navigate(`/students/${student.id}`)}>
                 <div className="student-avatar" style={{ width: 44, height: 44, background: 'var(--color-green)', fontSize: 14 }}>
-                  {student.firstName[0]}{student.lastName[0]}
+                  {student.firstName?.[0] || ''}{student.lastName?.[0] || ''}
                 </div>
                 <div className="student-info">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>

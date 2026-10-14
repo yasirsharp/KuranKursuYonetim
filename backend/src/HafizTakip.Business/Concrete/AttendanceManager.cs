@@ -117,7 +117,9 @@ public class AttendanceManager : IAttendanceService
     public async Task<IResult> AddAsync(CreateAttendanceDto createAttendanceDto)
     {
         // TODO: Öğrencinin bu tenant'a ait olduğunu doğrula; DTO'daki StudentId doğrudan kayda yazılıyor.
-        var existing = await _attendanceDal.GetAsync(a => a.StudentId == createAttendanceDto.StudentId && a.Date.Date == createAttendanceDto.Date.Date);
+        var dateUtc = DateTime.SpecifyKind(createAttendanceDto.Date.Date, DateTimeKind.Utc);
+        var nextDateUtc = dateUtc.AddDays(1);
+        var existing = await _attendanceDal.GetAsync(a => a.StudentId == createAttendanceDto.StudentId && a.Date >= dateUtc && a.Date < nextDateUtc);
         if (existing != null)
         {
             return new ErrorResult("Bu öğrenci için bu tarihte zaten bir yoklama kaydı var.");
@@ -127,7 +129,7 @@ public class AttendanceManager : IAttendanceService
         {
             TenantId = _tenantContext.TenantId,
             StudentId = createAttendanceDto.StudentId,
-            Date = createAttendanceDto.Date.Date,
+            Date = dateUtc,
             Status = createAttendanceDto.Status,
             Notes = createAttendanceDto.Notes
         };
@@ -140,11 +142,12 @@ public class AttendanceManager : IAttendanceService
     public async Task<IResult> AddBulkAsync(BulkAttendanceDto bulkAttendanceDto)
     {
         // TODO: Tüm öğrenci kimliklerini tenant içinde doğrula ve toplu yazımları tek transaction altında çalıştır.
-        var date = bulkAttendanceDto.Date.Date;
+        var dateUtc = DateTime.SpecifyKind(bulkAttendanceDto.Date.Date, DateTimeKind.Utc);
+        var nextDateUtc = dateUtc.AddDays(1);
         
         foreach (var item in bulkAttendanceDto.Attendances)
         {
-            var existing = await _attendanceDal.GetAsync(a => a.StudentId == item.StudentId && a.Date.Date == date);
+            var existing = await _attendanceDal.GetAsync(a => a.StudentId == item.StudentId && a.Date >= dateUtc && a.Date < nextDateUtc);
             
             if (existing != null)
             {
@@ -161,7 +164,7 @@ public class AttendanceManager : IAttendanceService
                 {
                     TenantId = _tenantContext.TenantId,
                     StudentId = item.StudentId,
-                    Date = date,
+                    Date = dateUtc,
                     Status = item.Status,
                     Notes = item.Notes
                 };

@@ -12,6 +12,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
+// Npgsql 6.0+ DateTimeKind (UTC/Unspecified) uyumluluk anahtarı
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Autofac Configuration
@@ -105,9 +108,16 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// SADECE GELİŞTİRME ORTAMI İÇİN TEST VERİSİ ÜRETİCİSİ
+// SADECE GELİŞTİRME ORTAMI İÇİN — Veritabanı yoksa otomatik oluştur ve test verisi üret
 if (app.Environment.IsDevelopment())
 {
+    // Veritabanını otomatik oluştur (migration gerekmeden)
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<HafizTakipDbContext>();
+        db.Database.EnsureCreated();
+    }
+
     app.MapPost("/api/dev/seed", async (HafizTakipDbContext db, HafizTakip.Core.Utilities.Security.Jwt.ITokenHelper tokenHelper) =>
     {
         var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Slug == "ornek");
@@ -115,27 +125,35 @@ if (app.Environment.IsDevelopment())
 
         if (tenant == null)
         {
+            // 1. Önce Tenant oluştur ve kaydet
             tenant = new HafizTakip.Core.Entities.Platform.Tenant { Id = Guid.NewGuid(), Name = "Örnek Kurs", Slug = "ornek", IsActive = true, Status = "active" };
             db.Tenants.Add(tenant);
+            await db.SaveChangesAsync();
             
+            // 2. User'ları oluştur ve kaydet (Tenant FK bağımlılığı)
             teacher = new HafizTakip.Entities.Concrete.User { Id = Guid.NewGuid(), TenantId = tenant.Id, FirstName = "Ahmet", LastName = "Hoca", PhoneNumber = "5551112233", Role = "head_teacher" };
             db.Users.Add(teacher);
             
             var assistant = new HafizTakip.Entities.Concrete.User { Id = Guid.NewGuid(), TenantId = tenant.Id, FirstName = "Mehmet", LastName = "Hoca", PhoneNumber = "5551112244", Role = "assistant_teacher" };
             db.Users.Add(assistant);
+            await db.SaveChangesAsync();
 
+            // 3. Group oluştur ve kaydet (Tenant + User FK bağımlılığı)
             var group = new HafizTakip.Entities.Concrete.Group { Id = Guid.NewGuid(), TenantId = tenant.Id, TeacherId = teacher.Id, Name = "Hafızlık Sınıfı 1" };
             db.Groups.Add(group);
+            await db.SaveChangesAsync();
             
+            // 4. Student'ları oluştur ve kaydet (Tenant + Group FK bağımlılığı)
             var student1 = new HafizTakip.Entities.Concrete.Student { Id = Guid.NewGuid(), TenantId = tenant.Id, GroupId = group.Id, FirstName = "Yusuf", LastName = "Demir", IdentificationNumber = "123", CurrentPage = 156, CompletedPages = 156, Status = "active" };
             db.Students.Add(student1);
             
             var student2 = new HafizTakip.Entities.Concrete.Student { Id = Guid.NewGuid(), TenantId = tenant.Id, GroupId = group.Id, FirstName = "Zeynep", LastName = "Çelik", IdentificationNumber = "124", CurrentPage = 312, CompletedPages = 312, Status = "active" };
             db.Students.Add(student2);
+            await db.SaveChangesAsync();
 
+            // 5. Lesson oluştur ve kaydet (Student + Teacher FK bağımlılığı)
             var lesson1 = new HafizTakip.Entities.Concrete.Lesson { Id = Guid.NewGuid(), TenantId = tenant.Id, StudentId = student1.Id, TeacherId = teacher.Id, LessonDate = DateTime.UtcNow.Date, JuzNumber = 7, PageNumber = 156, SuraId = 1, IsNewPage = true, HomeworkStatus = "yapıldı" };
             db.Lessons.Add(lesson1);
-
             await db.SaveChangesAsync();
         }
         else

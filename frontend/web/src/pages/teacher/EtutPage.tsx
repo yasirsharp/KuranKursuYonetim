@@ -37,22 +37,22 @@ export default function EtutPage() {
       const data = await getEtutAssignments(todayDate);
       
       // Tamamlanmamış veya etüt sırasında ilgilenilenleri listele
-      // İsterseniz filter uygulayabilirsiniz, biz şimdilik hepsini alıyoruz
-      setAssignments(data.items || []);
+      const list = data.data || data.items || [];
+      setAssignments(list);
       
       // Başlangıç statelerini doldur
       const initialCompleted: Record<string, string[]> = {};
       const initialNotes: Record<string, string> = {};
       
-      (data.items || []).forEach(a => {
-        initialCompleted[a.id] = [...a.completedInEtut];
+      list.forEach(a => {
+        initialCompleted[a.id] = [...(a.completedInEtut || [])];
         initialNotes[a.id] = a.etutTeacherNote || '';
       });
       
       setCompletedTasks(initialCompleted);
       setEtutNotes(initialNotes);
       
-      log.info('loadAssignments', `${data.items?.length || 0} etüt görevi yüklendi`);
+      log.info('loadAssignments', `${list.length} etüt görevi yüklendi`);
     } catch (err) {
       log.error('loadAssignments', 'Etüt görevleri yüklenemedi', err);
       setError('Etüt görevleri alınırken bir hata oluştu.');

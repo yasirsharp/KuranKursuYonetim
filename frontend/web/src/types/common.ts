@@ -5,10 +5,12 @@ export interface IApiResponse<T> {
   data: T;
 }
 
-/** Sayfalı liste yanıtı */
+/** Sayfalı liste yanıtı (Backend PagedResult<T>) */
 export interface IPaginatedResponse<T> {
-  items: T[];
+  data: T[];
+  items?: T[];
   totalCount: number;
   page: number;
   pageSize: number;
 }
+

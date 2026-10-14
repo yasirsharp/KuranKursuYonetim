@@ -69,9 +69,10 @@ export default function StudentDetailPage() {
   const loadAttendances = async (studentId: string) => {
     try {
       setAttendancesLoading(true);
-      const result = await getStudentAttendances(studentId, 0, 30);
-      setAttendances(result.items || []);
-      log.info('loadAttendances', `${result.items?.length || 0} devamsızlık kaydı yüklendi`);
+      const result = await getStudentAttendances(studentId, 1, 30);
+      const list = result.data || result.items || [];
+      setAttendances(list);
+      log.info('loadAttendances', `${list.length} devamsızlık kaydı yüklendi`);
     } catch (err) {
       log.error('loadAttendances', 'Devamsızlık kayıtları yüklenemedi', err);
     } finally {

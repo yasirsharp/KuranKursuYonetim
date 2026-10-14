@@ -8,7 +8,7 @@ export async function getDashboardSummary(): Promise<IDashboardSummary> {
 }
 
 export async function getStudentProgress(studentId: string): Promise<IStudentProgress> {
-  const response = await apiClient.get<IApiResponse<IStudentProgress>>(`/api/dashboard/progress/${studentId}`);
+  const response = await apiClient.get<IApiResponse<IStudentProgress>>(`/api/dashboard/student/${studentId}/progress`);
   return response.data.data;
 }
 

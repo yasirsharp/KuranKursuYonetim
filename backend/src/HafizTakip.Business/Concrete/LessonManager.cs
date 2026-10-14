@@ -144,7 +144,9 @@ public class LessonManager : ILessonService
     public async Task<IResult> AddAsync(CreateLessonDto createLessonDto)
     {
         // 1. Aynı öğrenciye, aynı tarihte ders var mı kontrolü
-        var existingLesson = await _lessonDal.GetAsync(l => l.StudentId == createLessonDto.StudentId && l.LessonDate.Date == createLessonDto.LessonDate.Date);
+        var lessonDateUtc = DateTime.SpecifyKind(createLessonDto.LessonDate.Date, DateTimeKind.Utc);
+        var nextDateUtc = lessonDateUtc.AddDays(1);
+        var existingLesson = await _lessonDal.GetAsync(l => l.StudentId == createLessonDto.StudentId && l.LessonDate >= lessonDateUtc && l.LessonDate < nextDateUtc);
         if (existingLesson != null)
         {
             return new ErrorResult("Bu öğrenci için bu tarihte zaten bir ders kaydı mevcut.");
@@ -160,7 +162,7 @@ public class LessonManager : ILessonService
             TenantId = _tenantContext.TenantId,
             StudentId = createLessonDto.StudentId,
             TeacherId = createLessonDto.TeacherId,
-            LessonDate = createLessonDto.LessonDate.Date,
+            LessonDate = lessonDateUtc,
             JuzNumber = createLessonDto.CuzNo ?? 0,
             PageNumber = createLessonDto.PageNo ?? 0,
             // TODO: SurahName'i doğrulanmış sure kimliğine eşle; şu an gelen sure bilgisi kayboluyor.
