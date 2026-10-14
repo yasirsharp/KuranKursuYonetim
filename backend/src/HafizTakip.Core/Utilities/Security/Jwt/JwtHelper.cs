@@ -23,7 +23,7 @@ public class JwtHelper : ITokenHelper
 
     public AccessToken CreateToken(PlatformUser user, List<string> roles, Guid tenantId)
     {
-        _accessTokenExpiration = DateTime.Now.AddMinutes(_tokenOptions.AccessTokenExpiration);
+        _accessTokenExpiration = DateTime.UtcNow.AddMinutes(_tokenOptions.AccessTokenExpiration);
 
         var securityKey = SecurityKeyHelper.CreateSecurityKey(_tokenOptions.SecurityKey);
 
@@ -31,7 +31,7 @@ public class JwtHelper : ITokenHelper
             issuer: _tokenOptions.Issuer,
             audience: _tokenOptions.Audience,
             claims: SetClaims(user, roles, tenantId),
-            notBefore: DateTime.Now,
+            notBefore: DateTime.UtcNow,
             expires: _accessTokenExpiration,
             signingCredentials: SigningCredentialsHelper.CreateSigningCredentials(securityKey)
         );

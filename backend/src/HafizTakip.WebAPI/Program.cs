@@ -8,14 +8,32 @@ using HafizTakip.Core.Utilities.Security.Encryption;
 using HafizTakip.Core.Utilities.Security.Jwt;
 using HafizTakip.DataAccess.Concrete.EntityFramework;
 using HafizTakip.WebAPI.Middlewares;
+using HafizTakip.WebAPI.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 // Npgsql 6.0+ DateTimeKind (UTC/Unspecified) uyumluluk anahtarı
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Yapılandırma doğrulaması ─────────────────────────────────────────
+// Secret'lar repoda tutulmaz: üretimde ortam değişkeni, geliştirmede appsettings.Development.json
+// veya `dotnet user-secrets` kullanılır. Eksik/zayıf ayarla uygulama başlamaz.
+var connectionString = builder.Configuration.GetConnectionString("PostgreSqlConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("ConnectionStrings:PostgreSqlConnection yapılandırılmamış.");
+
+var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>() ?? new TokenOptions();
+var tokenErrors = tokenOptions.Validate();
+if (tokenErrors.Count > 0)
+    throw new InvalidOperationException(string.Join(Environment.NewLine, tokenErrors));
+if (!builder.Environment.IsDevelopment() && tokenOptions.SecurityKey.StartsWith("DEV-ONLY-"))
+    throw new InvalidOperationException("Geliştirme JWT anahtarı geliştirme dışı bir ortamda kullanılamaz.");
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 
 // Autofac Configuration
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory())
@@ -24,33 +42,27 @@ builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory())
         builder.RegisterModule(new AutofacBusinessModule());
     });
 
-// Add services to the container.
 builder.Services.AddControllers();
 
-// Add CORS
-// TODO: AllowAll politikasını dağıtım ortamında yapılandırılmış güvenilir origin listesiyle sınırla.
+// CORS — yalnızca yapılandırmadaki origin'ler
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        builder =>
-        {
-            builder.AllowAnyOrigin()
-                   .AllowAnyMethod()
-                   .AllowAnyHeader();
-        });
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
 // EF Core Configuration
 builder.Services.AddDbContext<HafizTakipDbContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSqlConnection"))
+    options.UseNpgsql(connectionString)
            .UseSnakeCaseNamingConvention(); // EfCore.NamingConventions eklentisi
 });
 
 // JWT Configuration
-// TODO: Üretimde veritabanı bağlantısı ve JWT imza anahtarının secret store/environment üzerinden geldiğini zorunlu kıl; repodaki appsettings değerleri geliştirme içindir.
-var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>()!;
-
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -62,7 +74,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = tokenOptions.Issuer,
             ValidAudience = tokenOptions.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions.SecurityKey)
+            IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions.SecurityKey),
+            ClockSkew = TimeSpan.FromMinutes(1)
         };
     });
 
@@ -73,17 +86,24 @@ builder.Services.AddDependencyResolvers(new ICoreModule[]
 });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-// Authorization Policies
-// TODO: Controller'lardaki çıplak [Authorize] yalnızca oturum kontrolü yapar; endpoint rolü ve veli-öğrenci kayıt sahipliği kurallarını tamamla.
-builder.Services.AddAuthorization(options =>
+builder.Services.AddSwaggerGen(options =>
 {
-    options.AddPolicy("RequireSuperAdmin", policy => policy.RequireClaim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "super_admin"));
-    options.AddPolicy("RequireTenantAdmin", policy => policy.RequireClaim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "super_admin", "tenant_admin"));
-    options.AddPolicy("RequireHeadTeacher", policy => policy.RequireClaim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "super_admin", "tenant_admin", "head_teacher"));
-    options.AddPolicy("RequireTeacher", policy => policy.RequireClaim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "super_admin", "tenant_admin", "head_teacher", "assistant_teacher"));
-    options.AddPolicy("RequireParent", policy => policy.RequireClaim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "super_admin", "tenant_admin", "head_teacher", "assistant_teacher", "parent"));
+    var bearerScheme = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Description = "verify-otp yanıtındaki token'ı girin (Bearer öneki otomatik eklenir).",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+    };
+    options.AddSecurityDefinition("Bearer", bearerScheme);
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement { [bearerScheme] = Array.Empty<string>() });
 });
+
+// Rol hiyerarşisine dayalı yetkilendirme policy'leri
+builder.Services.AddHafizTakipAuthorization();
 
 var app = builder.Build();
 
@@ -97,7 +117,7 @@ if (app.Environment.IsDevelopment())
 // Custom Exception Middleware
 app.ConfigureCustomExceptionMiddleware();
 
-app.UseCors("AllowAll");
+app.UseCors("Frontend");
 
 app.UseAuthentication();
 
@@ -117,7 +137,10 @@ if (app.Environment.IsDevelopment())
         var db = scope.ServiceProvider.GetRequiredService<HafizTakipDbContext>();
         db.Database.EnsureCreated();
     }
+}
 
+if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Dev:EnableSeed"))
+{
     app.MapPost("/api/dev/seed", async (HafizTakipDbContext db, HafizTakip.Core.Utilities.Security.Jwt.ITokenHelper tokenHelper) =>
     {
         var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Slug == "ornek");
@@ -129,11 +152,11 @@ if (app.Environment.IsDevelopment())
             tenant = new HafizTakip.Core.Entities.Platform.Tenant { Id = Guid.NewGuid(), Name = "Örnek Kurs", Slug = "ornek", IsActive = true, Status = "active" };
             db.Tenants.Add(tenant);
             await db.SaveChangesAsync();
-            
+
             // 2. User'ları oluştur ve kaydet (Tenant FK bağımlılığı)
             teacher = new HafizTakip.Entities.Concrete.User { Id = Guid.NewGuid(), TenantId = tenant.Id, FirstName = "Ahmet", LastName = "Hoca", PhoneNumber = "5551112233", Role = "head_teacher" };
             db.Users.Add(teacher);
-            
+
             var assistant = new HafizTakip.Entities.Concrete.User { Id = Guid.NewGuid(), TenantId = tenant.Id, FirstName = "Mehmet", LastName = "Hoca", PhoneNumber = "5551112244", Role = "assistant_teacher" };
             db.Users.Add(assistant);
             await db.SaveChangesAsync();
@@ -142,11 +165,11 @@ if (app.Environment.IsDevelopment())
             var group = new HafizTakip.Entities.Concrete.Group { Id = Guid.NewGuid(), TenantId = tenant.Id, TeacherId = teacher.Id, Name = "Hafızlık Sınıfı 1" };
             db.Groups.Add(group);
             await db.SaveChangesAsync();
-            
+
             // 4. Student'ları oluştur ve kaydet (Tenant + Group FK bağımlılığı)
             var student1 = new HafizTakip.Entities.Concrete.Student { Id = Guid.NewGuid(), TenantId = tenant.Id, GroupId = group.Id, FirstName = "Yusuf", LastName = "Demir", IdentificationNumber = "123", CurrentPage = 156, CompletedPages = 156, Status = "active" };
             db.Students.Add(student1);
-            
+
             var student2 = new HafizTakip.Entities.Concrete.Student { Id = Guid.NewGuid(), TenantId = tenant.Id, GroupId = group.Id, FirstName = "Zeynep", LastName = "Çelik", IdentificationNumber = "124", CurrentPage = 312, CompletedPages = 312, Status = "active" };
             db.Students.Add(student2);
             await db.SaveChangesAsync();
@@ -171,3 +194,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+// WebApplicationFactory tabanlı entegrasyon testleri için
+public partial class Program { }

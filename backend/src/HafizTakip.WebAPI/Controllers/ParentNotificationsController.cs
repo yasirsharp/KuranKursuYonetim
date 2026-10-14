@@ -1,16 +1,17 @@
-﻿using HafizTakip.Business.Abstract;
+using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Entities.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HafizTakip.WebAPI.Security;
 
 namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
 // TODO: Bildirim okuma yetkilerini bağlı veli-öğrenci ilişkisiyle sınırla.
-[Authorize]
-public class ParentNotificationsController : ControllerBase
+[Authorize(Policy = AuthorizationPolicies.TenantMember)]
+public class ParentNotificationsController : ApiControllerBase
 {
     private readonly IParentNotificationService _parentNotificationService;
 
@@ -20,48 +21,43 @@ public class ParentNotificationsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "tenant_admin")]
+    [Authorize(Policy = AuthorizationPolicies.TenantAdmin)]
     public async Task<IActionResult> GetAll([FromQuery] PaginationParams paginationParams)
     {
         var result = await _parentNotificationService.GetAllAsync(paginationParams);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpGet("student/{studentId}")]
-    [Authorize(Roles = "tenant_admin,head_teacher,assistant_teacher")]
+    [Authorize(Policy = AuthorizationPolicies.Teacher)]
     public async Task<IActionResult> GetByStudentId(Guid studentId, [FromQuery] PaginationParams paginationParams)
     {
         var result = await _parentNotificationService.GetByStudentIdAsync(studentId, paginationParams);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "tenant_admin,head_teacher")]
+    [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _parentNotificationService.GetByIdAsync(id);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpPost]
-    [Authorize(Roles = "tenant_admin,head_teacher")]
+    [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
     public async Task<IActionResult> Add(CreateParentNotificationDto createParentNotificationDto)
     {
         var result = await _parentNotificationService.AddAsync(createParentNotificationDto);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpPost("{id}/send")]
-    [Authorize(Roles = "tenant_admin,head_teacher")]
+    [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
     public async Task<IActionResult> SendNotification(Guid id)
     {
         var result = await _parentNotificationService.SendNotificationAsync(id);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 }
 

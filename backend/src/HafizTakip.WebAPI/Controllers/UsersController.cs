@@ -2,13 +2,14 @@ using HafizTakip.Business.Abstract;
 using HafizTakip.Entities.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HafizTakip.WebAPI.Security;
 
 namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
 // TODO: Kullanıcı listesindeki telefon/e-posta verileri için okuma rollerini daralt.
-[Authorize] // Herkes görebilir ancak sadece kendi tenant'ındaki hocaları
+[Authorize(Policy = AuthorizationPolicies.Teacher)]
 public class UsersController : ApiControllerBase
 {
     private readonly IUserService _userService;
@@ -33,7 +34,7 @@ public class UsersController : ApiControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "tenant_admin,head_teacher")]
+    [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
     public async Task<IActionResult> Add(CreateUserDto createUserDto)
     {
         var result = await _userService.AddAsync(createUserDto);
@@ -43,7 +44,7 @@ public class UsersController : ApiControllerBase
     // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpPut]
-    [Authorize(Roles = "tenant_admin,head_teacher")]
+    [Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
     public async Task<IActionResult> Update(UpdateUserDto updateUserDto)
     {
         var result = await _userService.UpdateAsync(updateUserDto);
@@ -53,7 +54,7 @@ public class UsersController : ApiControllerBase
     // TODO: Production ortamında DELETE ve PUT metodları desteklenmeyebilir.
     // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpDelete("{id}")]
-    [Authorize(Roles = "tenant_admin")]
+    [Authorize(Policy = AuthorizationPolicies.TenantAdmin)]
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await _userService.DeleteAsync(id);

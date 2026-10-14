@@ -1,14 +1,15 @@
-﻿using HafizTakip.Business.Abstract;
+using HafizTakip.Business.Abstract;
 using HafizTakip.Entities.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HafizTakip.WebAPI.Security;
 
 namespace HafizTakip.WebAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Roles = "tenant_admin,head_teacher")]
-public class StudentParentsController : ControllerBase
+[Authorize(Policy = AuthorizationPolicies.HeadTeacher)]
+public class StudentParentsController : ApiControllerBase
 {
     private readonly IStudentParentService _studentParentService;
 
@@ -21,24 +22,21 @@ public class StudentParentsController : ControllerBase
     public async Task<IActionResult> GetParentsByStudentId(Guid studentId)
     {
         var result = await _studentParentService.GetParentsByStudentIdAsync(studentId);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpGet("parent/{parentId}")]
     public async Task<IActionResult> GetStudentsByParentId(Guid parentId)
     {
         var result = await _studentParentService.GetStudentsByParentIdAsync(parentId);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpPost]
     public async Task<IActionResult> Add(CreateStudentParentDto dto)
     {
         var result = await _studentParentService.AddAsync(dto);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 
     [HttpDelete("{id}")]
@@ -47,8 +45,7 @@ public class StudentParentsController : ControllerBase
         // TODO: Geli�mi� yetki (Authorization) ve validasyon kontrollerini g�zden ge�ir.
         // WARNING: Soft-delete veya g�ncelleme i�lemlerinde TenantId izolasyonundan emin ol.
         var result = await _studentParentService.DeleteAsync(id);
-        if (result.Success) return Ok(result);
-        return BadRequest(result);
+        return HandleResult(result);
     }
 }
 
