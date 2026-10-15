@@ -360,10 +360,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 1. Referans verilen tablolarda (tenant_id, id) benzersizliği
-SELECT pg_temp.add_constraint_if_missing('users',    'uq_users_tenant_id_id',    'UNIQUE (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('groups',   'uq_groups_tenant_id_id',   'UNIQUE (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('students', 'uq_students_tenant_id_id', 'UNIQUE (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('exams',    'uq_exams_tenant_id_id',    'UNIQUE (tenant_id, id)');
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('users',    'uq_users_tenant_id_id',    'UNIQUE (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('groups',   'uq_groups_tenant_id_id',   'UNIQUE (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('students', 'uq_students_tenant_id_id', 'UNIQUE (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('exams',    'uq_exams_tenant_id_id',    'UNIQUE (tenant_id, id)'); END $$;
 
 -- 2. Tek kolonlu FK'leri kaldır
 ALTER TABLE groups               DROP CONSTRAINT IF EXISTS groups_teacher_id_fkey;
@@ -387,44 +387,44 @@ ALTER TABLE daily_assignments    DROP CONSTRAINT IF EXISTS daily_assignments_tea
 ALTER TABLE refresh_tokens       DROP CONSTRAINT IF EXISTS refresh_tokens_user_id_fkey;
 
 -- 3. Bileşik (tenant_id, x_id) FK'ler — ON DELETE davranışları korunmuştur
-SELECT pg_temp.add_constraint_if_missing('groups', 'fk_groups_teacher',
-    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('students', 'fk_students_group',
-    'FOREIGN KEY (tenant_id, group_id) REFERENCES groups (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('student_parents', 'fk_student_parents_student',
-    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id) ON DELETE CASCADE');
-SELECT pg_temp.add_constraint_if_missing('student_parents', 'fk_student_parents_parent',
-    'FOREIGN KEY (tenant_id, parent_id) REFERENCES users (tenant_id, id) ON DELETE CASCADE');
-SELECT pg_temp.add_constraint_if_missing('lessons', 'fk_lessons_student',
-    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('lessons', 'fk_lessons_teacher',
-    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('attendances', 'fk_attendances_student',
-    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('repetition_sessions', 'fk_repetition_sessions_student',
-    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('repetition_sessions', 'fk_repetition_sessions_teacher',
-    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('etut_notes', 'fk_etut_notes_student',
-    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('etut_notes', 'fk_etut_notes_teacher',
-    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('exams', 'fk_exams_group',
-    'FOREIGN KEY (tenant_id, group_id) REFERENCES groups (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('exam_results', 'fk_exam_results_exam',
-    'FOREIGN KEY (tenant_id, exam_id) REFERENCES exams (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('exam_results', 'fk_exam_results_student',
-    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('announcements', 'fk_announcements_author',
-    'FOREIGN KEY (tenant_id, author_id) REFERENCES users (tenant_id, id)');
-SELECT pg_temp.add_constraint_if_missing('parent_notifications', 'fk_parent_notifications_student',
-    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id) ON DELETE CASCADE');
-SELECT pg_temp.add_constraint_if_missing('daily_assignments', 'fk_daily_assignments_student',
-    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id) ON DELETE CASCADE');
-SELECT pg_temp.add_constraint_if_missing('daily_assignments', 'fk_daily_assignments_teacher',
-    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id) ON DELETE CASCADE');
-SELECT pg_temp.add_constraint_if_missing('refresh_tokens', 'fk_refresh_tokens_user',
-    'FOREIGN KEY (tenant_id, user_id) REFERENCES users (tenant_id, id) ON DELETE CASCADE');
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('groups', 'fk_groups_teacher',
+    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('students', 'fk_students_group',
+    'FOREIGN KEY (tenant_id, group_id) REFERENCES groups (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('student_parents', 'fk_student_parents_student',
+    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id) ON DELETE CASCADE'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('student_parents', 'fk_student_parents_parent',
+    'FOREIGN KEY (tenant_id, parent_id) REFERENCES users (tenant_id, id) ON DELETE CASCADE'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('lessons', 'fk_lessons_student',
+    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('lessons', 'fk_lessons_teacher',
+    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('attendances', 'fk_attendances_student',
+    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('repetition_sessions', 'fk_repetition_sessions_student',
+    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('repetition_sessions', 'fk_repetition_sessions_teacher',
+    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('etut_notes', 'fk_etut_notes_student',
+    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('etut_notes', 'fk_etut_notes_teacher',
+    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('exams', 'fk_exams_group',
+    'FOREIGN KEY (tenant_id, group_id) REFERENCES groups (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('exam_results', 'fk_exam_results_exam',
+    'FOREIGN KEY (tenant_id, exam_id) REFERENCES exams (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('exam_results', 'fk_exam_results_student',
+    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('announcements', 'fk_announcements_author',
+    'FOREIGN KEY (tenant_id, author_id) REFERENCES users (tenant_id, id)'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('parent_notifications', 'fk_parent_notifications_student',
+    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id) ON DELETE CASCADE'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('daily_assignments', 'fk_daily_assignments_student',
+    'FOREIGN KEY (tenant_id, student_id) REFERENCES students (tenant_id, id) ON DELETE CASCADE'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('daily_assignments', 'fk_daily_assignments_teacher',
+    'FOREIGN KEY (tenant_id, teacher_id) REFERENCES users (tenant_id, id) ON DELETE CASCADE'); END $$;
+DO $$ BEGIN PERFORM pg_temp.add_constraint_if_missing('refresh_tokens', 'fk_refresh_tokens_user',
+    'FOREIGN KEY (tenant_id, user_id) REFERENCES users (tenant_id, id) ON DELETE CASCADE'); END $$;
 
 -- =============================================================
 -- 5. KUR'AN REFERANS TABLOLARI (veri: 02_quran_reference.sql)
@@ -443,3 +443,23 @@ CREATE TABLE IF NOT EXISTS quran_pages (
     first_surah_id INTEGER NOT NULL REFERENCES quran_surahs(id),
     last_surah_id INTEGER NOT NULL REFERENCES quran_surahs(id)
 );
+
+-- =============================================================
+-- 6. MIGRATION TAKİBİ
+-- Bu dosya şemanın son halidir; içerdiği migration'lar uygulanmış sayılır.
+-- database/db.ps1 -Migrate yalnızca burada kayıtlı olmayan migration'ları çalıştırır.
+-- Yeni bir migration eklendiğinde sürümü aşağıdaki listeye de eklenmelidir.
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version VARCHAR(100) PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO schema_migrations (version) VALUES
+    ('001_normalize_phone_numbers'),
+    ('002_refresh_tokens'),
+    ('003_tenant_composite_fks'),
+    ('004_normalize_status_values'),
+    ('005_lesson_surah_backfill')
+ON CONFLICT (version) DO NOTHING;

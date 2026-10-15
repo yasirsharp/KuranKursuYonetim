@@ -152,17 +152,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// SADECE GELİŞTİRME ORTAMI İÇİN — Veritabanı yoksa otomatik oluştur ve test verisi üret
-if (app.Environment.IsDevelopment())
-{
-    // Veritabanını otomatik oluştur (migration gerekmeden)
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<HafizTakipDbContext>();
-        db.Database.EnsureCreated();
-    }
-}
-
+// Şema EF tarafından oluşturulmaz (SQL script-first): veritabanını database/db.ps1 -Setup ile kurun.
+// SADECE GELİŞTİRME ORTAMI İÇİN — test verisi üreten uç
 if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Dev:EnableSeed"))
 {
     app.MapPost("/api/dev/seed", async (HafizTakipDbContext db, HafizTakip.Core.Utilities.Security.Jwt.ITokenHelper tokenHelper) =>
@@ -199,7 +190,7 @@ if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Dev:Ena
             await db.SaveChangesAsync();
 
             // 5. Lesson oluştur ve kaydet (Student + Teacher FK bağımlılığı)
-            var lesson1 = new HafizTakip.Entities.Concrete.Lesson { Id = Guid.NewGuid(), TenantId = tenant.Id, StudentId = student1.Id, TeacherId = teacher.Id, LessonDate = DateTime.UtcNow.Date, JuzNumber = 7, PageNumber = 156, SuraId = 1, IsNewPage = true, HomeworkStatus = "yapildi" };
+            var lesson1 = new HafizTakip.Entities.Concrete.Lesson { Id = Guid.NewGuid(), TenantId = tenant.Id, StudentId = student1.Id, TeacherId = teacher.Id, LessonDate = DateTime.UtcNow.Date, JuzNumber = 8, PageNumber = 156, SuraId = 7, IsNewPage = true, HomeworkStatus = "yapildi" };
             db.Lessons.Add(lesson1);
             await db.SaveChangesAsync();
         }

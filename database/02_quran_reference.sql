@@ -162,3 +162,13 @@ SELECT p.page,
                 (SELECT max(s.id) FROM quran_surahs s WHERE s.start_page < p.page)),
        (SELECT max(s.id) FROM quran_surahs s WHERE s.start_page <= p.page)
 FROM generate_series(1, 604) AS p(page);
+
+-- ── Ders kayıtlarının sure/cüz bilgisini güncel referansa göre yeniden hesapla ──
+-- Referans verisi düzeltildiğinde (ör. hoca kontrolünden sonra) mevcut dersler de güncel kalır.
+UPDATE lessons l
+SET juz_number = qp.juz,
+    sura_id = qp.first_surah_id,
+    updated_at = now()
+FROM quran_pages qp
+WHERE qp.page = l.page_number
+  AND (l.juz_number IS DISTINCT FROM qp.juz OR l.sura_id IS DISTINCT FROM qp.first_surah_id);
