@@ -1040,33 +1040,52 @@ App
 
 ## 10. Kurulum
 
-<!-- TODO: Bu kurulum yönergelerini mevcut .NET API + PostgreSQL + React uygulamasına göre güncelle; aşağıdaki Supabase paket adımları güncel frontend bağımlılıklarıyla eşleşmiyor. -->
+### Gereksinimler
+
+- .NET 8 SDK
+- PostgreSQL 14+ (`psql` dahil)
+- Node.js 20+
+
+### 1. Veritabanı
+
+```powershell
+$env:PGPASSWORD = 'postgres'
+.\database\db.ps1 -Setup -Database HafizTakipDB
+```
+
+Şema SQL scriptlerinden kurulur (EF Migration / `EnsureCreated` kullanılmaz). Mevcut bir veritabanını güncellemek için `-Migrate`; ayrıntılar `database/README.md`'de.
+
+### 2. Backend (ASP.NET Core, http://localhost:5200)
+
+Geliştirme ayarları `backend/src/HafizTakip.WebAPI/appsettings.Development.json` içindedir: yerel bağlantı dizesi, yalnızca geliştirmeye özel JWT anahtarı, sabit OTP kodu `123456` ve SMS yerine konsol çıktısı. Üretimde bağlantı dizesi, JWT anahtarı ve NetGSM bilgileri ortam değişkenleriyle verilmelidir; geliştirme değerleriyle uygulama üretimde başlamaz.
 
 ```bash
-# Projeyi oluştur
-npm create vite@latest hafiz-takip -- --template react
-cd hafiz-takip
+dotnet run --project backend/src/HafizTakip.WebAPI --launch-profile http
+```
 
-# Bağımlılıklar
+Swagger: http://localhost:5200/swagger
+
+### 3. Frontend (Vite + React, http://localhost:7071)
+
+```bash
+cd frontend/web
 npm install
-npm install @supabase/supabase-js zustand react-router-dom
-npm install recharts date-fns react-hot-toast @react-pdf/renderer
-npm install -D tailwindcss postcss autoprefixer vite-plugin-pwa
-npx tailwindcss init -p
-
-# Ortam değişkenleri
-cp .env.example .env.local
+npm run dev
 ```
 
-**.env.local**
-```
-VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=xxxx
-VITE_APP_NAME=Hafız Takip
-```
+Kök dizindeki `start-dev.ps1` backend ve frontend'i birlikte başlatır.
+
+### 4. Testler
 
 ```bash
-npm run dev
+dotnet test backend/src/HafizTakip.slnx
+```
+
+Entegrasyon testleri gerçek PostgreSQL üzerinde geçici bir veritabanı oluşturup sonunda siler. Çalışmaları için `HAFIZTAKIP_TEST_PG` ortam değişkeni gerekir (ör. `Host=localhost;Username=postgres;Password=postgres`); tanımlı değilse atlanırlar.
+
+```bash
+cd frontend/web
+npx vitest run
 ```
 
 ---
