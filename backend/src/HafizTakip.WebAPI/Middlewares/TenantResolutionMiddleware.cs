@@ -1,3 +1,4 @@
+using HafizTakip.Core.Constants;
 using HafizTakip.Core.Enums;
 using HafizTakip.Core.Utilities.IoC;
 using System.Security.Claims;
@@ -43,7 +44,7 @@ public class TenantResolutionMiddleware
             return;
         }
 
-        var isActive = await cache.GetOrCreateAsync($"tenant_active_{tenantId}", async entry =>
+        var isActive = await cache.GetOrCreateAsync(TenantCacheKeys.Status(tenantId), async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TenantStatusCacheDuration;
             var tenant = await tenantDal.GetAsync(t => t.Id == tenantId);

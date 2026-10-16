@@ -1,3 +1,5 @@
+using HafizTakip.Core.Constants;
+using HafizTakip.Core.DataAccess;
 using HafizTakip.Core.Enums;
 using HafizTakip.Business.Abstract;
 using HafizTakip.Core.Utilities.Requests;
@@ -6,17 +8,26 @@ using HafizTakip.Core.Aspects.Autofac.Validation;
 using HafizTakip.Core.Entities.Platform;
 using HafizTakip.Core.Utilities.Results;
 using HafizTakip.DataAccess.Abstract;
+using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace HafizTakip.Business.Concrete;
 
+/// <summary>Platform yöneticisinin kurs (tenant) yönetimi.</summary>
 public class TenantManager : ITenantService
 {
     private readonly ITenantDal _tenantDal;
+    private readonly ITenantSettingDal _settingDal;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMemoryCache _cache;
 
-    public TenantManager(ITenantDal tenantDal)
+    public TenantManager(ITenantDal tenantDal, ITenantSettingDal settingDal, IUnitOfWork unitOfWork, IMemoryCache cache)
     {
         _tenantDal = tenantDal;
+        _settingDal = settingDal;
+        _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task<IDataResult<PagedResult<TenantDto>>> GetAllAsync(PaginationParams paginationParams)
@@ -41,7 +52,7 @@ public class TenantManager : ITenantService
     public async Task<IDataResult<TenantDto>> GetByIdAsync(Guid id)
     {
         var t = await _tenantDal.GetAsync(x => x.Id == id);
-        if (t == null) return new ErrorDataResult<TenantDto>("Kurs bulunamadı.");
+        if (t == null) return new ErrorDataResult<TenantDto>("Kurs bulunamadı.", ResultErrorType.NotFound);
 
         var dto = new TenantDto
         {
@@ -50,9 +61,10 @@ public class TenantManager : ITenantService
             Slug = t.Slug,
             Status = t.Status,
             ContactEmail = t.ContactEmail,
-            ContactPhone = t.ContactPhone
+            ContactPhone = t.ContactPhone,
+            IsActive = t.IsActive
         };
-        
+
         return new SuccessDataResult<TenantDto>(dto, "Kurs getirildi.");
     }
 
@@ -62,7 +74,7 @@ public class TenantManager : ITenantService
         var existing = await _tenantDal.GetAsync(x => x.Slug == createTenantDto.Slug);
         if (existing != null)
         {
-            return new ErrorResult("Bu kısa ad (slug) zaten kullanılıyor.");
+            return new ErrorResult("Bu kısa ad (slug) zaten kullanılıyor.", ResultErrorType.Conflict);
         }
 
         var tenant = new Tenant
@@ -74,7 +86,11 @@ public class TenantManager : ITenantService
             Status = TenantStatus.Trial
         };
 
-        await _tenantDal.AddAsync(tenant);
+        // Kurs ve varsayılan ayarları tek seferde kaydedilir
+        _tenantDal.Add(tenant);
+        _settingDal.Add(new TenantSetting { TenantId = tenant.Id });
+        await _unitOfWork.SaveChangesAsync();
+
         return new SuccessResult("Kurs başarıyla eklendi.");
     }
 
@@ -82,27 +98,28 @@ public class TenantManager : ITenantService
     public async Task<IResult> UpdateAsync(UpdateTenantDto updateTenantDto)
     {
         var tenant = await _tenantDal.GetAsync(x => x.Id == updateTenantDto.Id);
-        if (tenant == null) return new ErrorResult("Kurs bulunamadı.");
+        if (tenant == null) return new ErrorResult("Kurs bulunamadı.", ResultErrorType.NotFound);
 
         tenant.Name = updateTenantDto.Name;
         tenant.Status = updateTenantDto.Status;
+        tenant.IsActive = updateTenantDto.IsActive;
         tenant.ContactEmail = updateTenantDto.ContactEmail;
         tenant.ContactPhone = updateTenantDto.ContactPhone;
-        tenant.UpdatedAt = DateTime.UtcNow;
 
         await _tenantDal.UpdateAsync(tenant);
+        // Askıya alma/aktifleştirme bir sonraki istekte hemen etkili olsun
+        _cache.Remove(TenantCacheKeys.Status(tenant.Id));
         return new SuccessResult("Kurs güncellendi.");
     }
 
     public async Task<IResult> DeleteAsync(Guid id)
     {
         var tenant = await _tenantDal.GetAsync(x => x.Id == id);
-        if (tenant == null) return new ErrorResult("Kurs bulunamadı.");
+        if (tenant == null) return new ErrorResult("Kurs bulunamadı.", ResultErrorType.NotFound);
 
-        tenant.IsDeleted = true;
-        tenant.DeletedAt = DateTime.UtcNow;
-        await _tenantDal.UpdateAsync(tenant); // Soft delete
-        
+        await _tenantDal.DeleteAsync(tenant); // DbContext soft delete'e çevirir
+        _cache.Remove(TenantCacheKeys.Status(tenant.Id));
+
         return new SuccessResult("Kurs silindi (Soft Delete).");
     }
 }

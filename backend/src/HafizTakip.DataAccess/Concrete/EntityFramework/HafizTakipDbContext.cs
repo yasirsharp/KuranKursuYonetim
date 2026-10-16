@@ -39,6 +39,7 @@ public class HafizTakipDbContext : DbContext
     public DbSet<DailyAssignment> DailyAssignments { get; set; }
     public DbSet<StudentParent> StudentParents { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<TenantSetting> TenantSettings { get; set; }
 
     // Kur'an referans verisi (platform seviyesi, salt okunur)
     public DbSet<QuranSurah> QuranSurahs { get; set; }

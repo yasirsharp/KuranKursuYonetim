@@ -18,6 +18,7 @@ public class AutofacBusinessModule : Module
         builder.RegisterType<EfUserDal>().As<IUserDal>().InstancePerLifetimeScope();
         builder.RegisterType<EfRefreshTokenDal>().As<IRefreshTokenDal>().InstancePerLifetimeScope();
         builder.RegisterType<EfQuranDal>().As<IQuranDal>().InstancePerLifetimeScope();
+        builder.RegisterType<EfTenantSettingDal>().As<ITenantSettingDal>().InstancePerLifetimeScope();
 
         // İstek başına tek DbContext üzerinden atomik kaydetme
         builder.RegisterType<EfUnitOfWork>().As<HafizTakip.Core.DataAccess.IUnitOfWork>().InstancePerLifetimeScope();

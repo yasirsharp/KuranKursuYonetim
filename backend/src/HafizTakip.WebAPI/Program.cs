@@ -52,7 +52,37 @@ builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory())
         builder.RegisterModule(new AutofacBusinessModule());
     });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Saatler "HH:mm" olarak gidip gelir
+        options.JsonSerializerOptions.Converters.Add(new HafizTakip.Core.Utilities.Json.TimeOnlyJsonConverter());
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Gövde ayrıştırılamadığında da uygulamanın standart hata biçimi dönsün: { success, message, statusCode, errors }
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var invalidEntries = context.ModelState.Where(entry => entry.Value?.Errors.Count > 0).ToList();
+
+            // Gövdede alan bazlı JSON hatası varsa, ASP.NET'in eklediği genel "parametre zorunlu" hatasını gösterme
+            if (invalidEntries.Any(entry => entry.Key.StartsWith('$')))
+                invalidEntries = invalidEntries.Where(entry => entry.Key.StartsWith('$')).ToList();
+
+            var errors = invalidEntries
+                .SelectMany(entry => entry.Value!.Errors.Select(error => new ValidationErrorItem(
+                    entry.Key.TrimStart('$', '.'),
+                    string.IsNullOrEmpty(error.ErrorMessage) ? "Geçersiz değer." : error.ErrorMessage)))
+                .ToList();
+
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new ValidationErrorDetails
+            {
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Doğrulama hatası.",
+                Errors = errors
+            });
+        };
+    });
 
 // CORS — yalnızca yapılandırmadaki origin'ler
 builder.Services.AddCors(options =>

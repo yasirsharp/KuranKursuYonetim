@@ -9,6 +9,9 @@
 INSERT INTO tenants (id, name, slug, status, contact_email, contact_phone, is_active)
 VALUES ('11111111-1111-1111-1111-111111111111', 'Merkez Kuran Kursu', 'merkez-kuran-kursu', 'active', 'iletisim@merkezkurs.com', '05550000001', true);
 
+-- Kurs ayarları (varsayılanlar; kurs başına tek satır)
+INSERT INTO tenant_settings (tenant_id) VALUES ('11111111-1111-1111-1111-111111111111');
+
 -- 2. PLATFORM KULLANICISI (Süper Admin)
 INSERT INTO platform_users (id, email, password_hash, role)
 VALUES ('22222222-2222-2222-2222-222222222222', 'admin@hafiztakip.com', 'hashed_password_here', 'super_admin');
@@ -20,7 +23,11 @@ VALUES ('33333333-1111-1111-1111-111111111111', '11111111-1111-1111-1111-1111111
 INSERT INTO invoices (id, tenant_id, subscription_id, invoice_no, amount, due_date, paid_date, status)
 VALUES ('44444444-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', '33333333-1111-1111-1111-111111111111', 'INV-2026-001', 5000.00, '2026-01-15', '2026-01-10', 'paid');
 
--- 4. KULLANICILAR (Öğretmenler ve Veliler)
+-- 4. KULLANICILAR (Kurs müdürü, öğretmenler ve veliler)
+-- Kurs Müdürü (tenant_admin) — giriş: 0500 111 22 30
+INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
+VALUES ('55555555-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'Osman', 'Aydın', '5001112230', 'mudur@merkezkurs.com', 'tenant_admin', NULL);
+
 -- Hoca 1 (Başöğretmen)
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
 VALUES ('55555555-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'Ahmet', 'Yılmaz', '5001112233', 'ahmet.hoca@merkezkurs.com', 'head_teacher', 'hashed_pw');
