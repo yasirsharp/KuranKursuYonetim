@@ -21,12 +21,26 @@ CREATE TABLE IF NOT EXISTS tenants (
     contact_email VARCHAR(255),
     contact_phone VARCHAR(50),
     is_active BOOLEAN NOT NULL DEFAULT true,
+
+    -- Kurs başvurusu ve platform onayı — migrations/007
+    city VARCHAR(100),
+    district VARCHAR(100),
+    address VARCHAR(500),
+    submitted_at TIMESTAMPTZ,
+    reviewed_at TIMESTAMPTZ,
+    reviewed_by UUID,
+    rejection_reason VARCHAR(500),
     
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ,
     is_deleted BOOLEAN NOT NULL DEFAULT false,
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMPTZ,
+
+    CONSTRAINT ck_tenants_status
+        CHECK (status IN ('pending', 'trial', 'active', 'suspended', 'cancelled', 'rejected'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants(status) WHERE is_deleted = false;
 
 CREATE TABLE IF NOT EXISTS platform_users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -39,6 +53,9 @@ CREATE TABLE IF NOT EXISTS platform_users (
     is_deleted BOOLEAN NOT NULL DEFAULT false,
     deleted_at TIMESTAMPTZ
 );
+
+ALTER TABLE tenants ADD CONSTRAINT tenants_reviewed_by_fkey
+    FOREIGN KEY (reviewed_by) REFERENCES platform_users(id);
 
 CREATE TABLE IF NOT EXISTS subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -496,5 +513,6 @@ INSERT INTO schema_migrations (version) VALUES
     ('003_tenant_composite_fks'),
     ('004_normalize_status_values'),
     ('005_lesson_surah_backfill'),
-    ('006_tenant_settings')
+    ('006_tenant_settings'),
+    ('007_course_applications')
 ON CONFLICT (version) DO NOTHING;

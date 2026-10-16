@@ -13,8 +13,10 @@ VALUES ('11111111-1111-1111-1111-111111111111', 'Merkez Kuran Kursu', 'merkez-ku
 INSERT INTO tenant_settings (tenant_id) VALUES ('11111111-1111-1111-1111-111111111111');
 
 -- 2. PLATFORM KULLANICISI (Süper Admin)
+-- YALNIZCA GELİŞTİRME: giriş admin@hafiztakip.com / HafizAdmin!2026  (POST /api/platform/auth/login)
+-- Özet biçimi: pbkdf2-sha256$iterasyon$tuz$özet (bkz. PasswordHasher). Üretimde bu satır kullanılmaz.
 INSERT INTO platform_users (id, email, password_hash, role)
-VALUES ('22222222-2222-2222-2222-222222222222', 'admin@hafiztakip.com', 'hashed_password_here', 'super_admin');
+VALUES ('22222222-2222-2222-2222-222222222222', 'admin@hafiztakip.com', 'pbkdf2-sha256$210000$J2RMcbfYZoEeqpkPMgtBqQ==$cKLMYxjpj7enBwmdyrfEhrVXTc2HZZnPXK+Xg+XV1DA=', 'super_admin');
 
 -- 3. ABONELİKLER VE FATURALAR
 INSERT INTO subscriptions (id, tenant_id, plan_name, start_date, end_date, status)
@@ -43,6 +45,17 @@ VALUES ('55555555-3333-3333-3333-333333333333', '11111111-1111-1111-1111-1111111
 -- Veli 2
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
 VALUES ('55555555-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111', 'Ayşe', 'Çelik', '5001112236', 'ayse.veli@mail.com', 'parent', 'hashed_pw');
+
+-- 4b. ONAY BEKLEYEN KURS BAŞVURUSU (platform onay ekranını denemek için)
+-- Başvuran kurs müdürü giriş yapabilir ama yalnızca "kursunuz onay bekliyor" durumunu görür — giriş: 0500 111 22 40
+INSERT INTO tenants (id, name, slug, status, contact_email, contact_phone, is_active, city, district, address, submitted_at)
+VALUES ('11111111-2222-2222-2222-222222222222', 'Yeşilvadi Kur''an Kursu', 'yesilvadi-kuran-kursu', 'pending', NULL, '5001112240', true,
+        'Konya', 'Selçuklu', 'Yeşilvadi Mah. Cami Sok. No: 3', now() - INTERVAL '2 hours');
+
+INSERT INTO tenant_settings (tenant_id) VALUES ('11111111-2222-2222-2222-222222222222');
+
+INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
+VALUES ('55555555-9999-9999-9999-999999999999', '11111111-2222-2222-2222-222222222222', 'Kemal', 'Arslan', '5001112240', NULL, 'tenant_admin', NULL);
 
 -- 5. GRUPLAR (Sınıflar)
 INSERT INTO groups (id, tenant_id, teacher_id, name, description)

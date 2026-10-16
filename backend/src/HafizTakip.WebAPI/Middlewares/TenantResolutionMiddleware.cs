@@ -1,8 +1,8 @@
 using HafizTakip.Core.Constants;
 using HafizTakip.Core.Enums;
 using HafizTakip.Core.Utilities.IoC;
-using System.Security.Claims;
 using HafizTakip.DataAccess.Abstract;
+using HafizTakip.WebAPI.Security;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace HafizTakip.WebAPI.Middlewares;
@@ -10,6 +10,9 @@ namespace HafizTakip.WebAPI.Middlewares;
 /// <summary>
 /// Oturum açmış kullanıcının JWT'sindeki tenant_id'yi çözer ve ITenantContext'e yazar.
 /// Tenant yalnızca imzalı token'dan gelir; istemcinin gönderdiği header'lara güvenilmez.
+/// Kursun durumu da burada uygulanır:
+/// - askıya alınmış/iptal/silinmiş kurs → 403 (code: tenant_inactive)
+/// - onay bekleyen/reddedilen kurs → yalnızca [AllowPendingTenant] uçları; diğerleri 403 (code: tenant_pending / tenant_rejected)
 /// </summary>
 public class TenantResolutionMiddleware
 {
@@ -40,20 +43,30 @@ public class TenantResolutionMiddleware
         var tenantClaim = context.User.FindFirst("tenant_id")?.Value;
         if (!Guid.TryParse(tenantClaim, out var tenantId) || tenantId == Guid.Empty)
         {
-            await WriteForbiddenAsync(context, "Oturum bilgisinde kurum bilgisi bulunamadı. Lütfen tekrar giriş yapın.");
+            await WriteForbiddenAsync(context, "tenant_missing", "Oturum bilgisinde kurum bilgisi bulunamadı. Lütfen tekrar giriş yapın.");
             return;
         }
 
-        var isActive = await cache.GetOrCreateAsync(TenantCacheKeys.Status(tenantId), async entry =>
+        var state = await cache.GetOrCreateAsync(TenantCacheKeys.Status(tenantId), async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TenantStatusCacheDuration;
             var tenant = await tenantDal.GetAsync(t => t.Id == tenantId);
-            return tenant != null && tenant.IsActive;
+            return tenant == null ? null : new TenantAccessState(tenant.Status, tenant.IsActive);
         });
 
-        if (!isActive)
+        if (state == null || !TenantStatus.CanSignIn(state.Status, state.IsActive))
         {
-            await WriteForbiddenAsync(context, "Kurum hesabı askıya alınmıştır veya bulunamamıştır. Lütfen sistem yöneticisi ile iletişime geçin.");
+            await WriteForbiddenAsync(context, "tenant_inactive", "Kurum hesabı askıya alınmıştır veya bulunamamıştır. Lütfen sistem yöneticisi ile iletişime geçin.");
+            return;
+        }
+
+        if (!TenantStatus.HasFullAccess(state.Status, state.IsActive)
+            && context.GetEndpoint()?.Metadata.GetMetadata<AllowPendingTenantAttribute>() == null)
+        {
+            if (state.Status == TenantStatus.Rejected)
+                await WriteForbiddenAsync(context, "tenant_rejected", "Kurs başvurunuz onaylanmadı. Bilgilerinizi düzenleyip yeniden gönderebilirsiniz.");
+            else
+                await WriteForbiddenAsync(context, "tenant_pending", "Kursunuz onay bekliyor. Platform yöneticisi onayladığında tüm özellikler açılacaktır.");
             return;
         }
 
@@ -61,9 +74,11 @@ public class TenantResolutionMiddleware
         await _next(context);
     }
 
-    private static Task WriteForbiddenAsync(HttpContext context, string message)
+    private static Task WriteForbiddenAsync(HttpContext context, string code, string message)
     {
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        return context.Response.WriteAsJsonAsync(new { success = false, message, statusCode = StatusCodes.Status403Forbidden });
+        return context.Response.WriteAsJsonAsync(new { success = false, message, code, statusCode = StatusCodes.Status403Forbidden });
     }
+
+    private sealed record TenantAccessState(string Status, bool IsActive);
 }

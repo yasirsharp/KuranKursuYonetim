@@ -27,6 +27,9 @@ public class AutofacBusinessModule : Module
 
         builder.RegisterType<EfTenantDal>().As<ITenantDal>().InstancePerLifetimeScope();
         builder.RegisterType<TenantManager>().As<ITenantService>().InstancePerLifetimeScope();
+        builder.RegisterType<CourseApplicationManager>().As<ICourseApplicationService>().InstancePerLifetimeScope();
+        builder.RegisterType<PlatformAuthService>().As<IPlatformAuthService>().InstancePerLifetimeScope();
+        builder.RegisterType<EfPlatformUserDal>().As<IPlatformUserDal>().InstancePerLifetimeScope();
 
         builder.RegisterType<EfGroupDal>().As<IGroupDal>().InstancePerLifetimeScope();
         builder.RegisterType<GroupManager>().As<IGroupService>().InstancePerLifetimeScope();

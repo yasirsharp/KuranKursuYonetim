@@ -228,4 +228,26 @@ public class AuthServiceTests
         result.ErrorType.Should().Be(ResultErrorType.Unauthorized);
         _refreshTokenDal.Verify(d => d.RotateAsync(It.IsAny<RefreshToken>(), It.IsAny<RefreshToken>()), Times.Never);
     }
+
+    [Theory]
+    [InlineData("pending", true, true)]
+    [InlineData("rejected", true, true)]
+    [InlineData("active", true, true)]
+    [InlineData("suspended", true, false)]
+    [InlineData("active", false, false)]
+    public async Task Refresh_ShouldFollowTenantSignInRules(string status, bool isActive, bool allowed)
+    {
+        var user = new User { Id = Guid.NewGuid(), TenantId = _tenantA, Role = "tenant_admin" };
+        _refreshTokenDal.Setup(d => d.GetByHashAcrossTenantsAsync(It.IsAny<string>()))
+            .ReturnsAsync(new RefreshToken { UserId = user.Id, TenantId = _tenantA, ExpiresAt = DateTime.UtcNow.AddDays(1) });
+        _userDal.Setup(d => d.GetByIdAcrossTenantsAsync(user.Id)).ReturnsAsync(user);
+        _tenantDal.Setup(d => d.GetAsync(It.IsAny<Expression<Func<Tenant, bool>>>()))
+            .ReturnsAsync(new Tenant { Id = _tenantA, Status = status, IsActive = isActive });
+
+        var result = await CreateService().RefreshAsync(new RefreshTokenRequestDto { RefreshToken = "valid" });
+
+        result.Success.Should().Be(allowed);
+        if (allowed) result.Data.TenantStatus.Should().Be(status);
+        else _refreshTokenDal.Verify(d => d.RevokeAllForUserAsync(user.Id, It.IsAny<DateTime>()), Times.Once);
+    }
 }

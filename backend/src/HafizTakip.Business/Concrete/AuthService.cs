@@ -1,9 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using HafizTakip.Business.Abstract;
+using HafizTakip.Business.Security;
 using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Core.Aspects.Autofac.Validation;
 using HafizTakip.Core.Entities.Platform;
+using HafizTakip.Core.Enums;
 using HafizTakip.Core.Utilities.Helpers;
 using HafizTakip.Core.Utilities.Results;
 using HafizTakip.Core.Utilities.Security.Jwt;
@@ -34,9 +36,8 @@ public class AuthService : IAuthService
     private readonly ITenantDal _tenantDal;
     private readonly IRefreshTokenDal _refreshTokenDal;
     private readonly ITokenHelper _tokenHelper;
-    private readonly IMemoryCache _cache;
     private readonly ISmsSender _smsSender;
-    private readonly OtpOptions _otpOptions;
+    private readonly OtpChallenge _otp;
     private readonly TokenOptions _tokenOptions;
     private readonly TimeProvider _timeProvider;
 
@@ -55,9 +56,8 @@ public class AuthService : IAuthService
         _tenantDal = tenantDal;
         _refreshTokenDal = refreshTokenDal;
         _tokenHelper = tokenHelper;
-        _cache = cache;
         _smsSender = smsSender;
-        _otpOptions = otpOptions;
+        _otp = new OtpChallenge(cache, otpOptions, timeProvider);
         _tokenOptions = tokenOptions;
         _timeProvider = timeProvider;
     }
@@ -72,7 +72,7 @@ public class AuthService : IAuthService
         var phone = PhoneNumberHelper.Normalize(sendOtpDto.PhoneNumber);
 
         // Hız sınırı numara kayıtlı olsun olmasın uygulanır; yanıt farkından numara keşfedilemez
-        var throttle = CheckAndRegisterSendAttempt(phone);
+        var throttle = _otp.CheckAndRegisterSendAttempt(phone);
         if (throttle != null) return throttle;
 
         var candidates = await _userDal.GetLoginCandidatesByPhoneAsync(phone);
@@ -81,15 +81,14 @@ public class AuthService : IAuthService
             return new SuccessResult(GenericSendMessage);
         }
 
-        var code = GenerateCode();
-        _cache.Set(OtpKey(phone), new OtpEntry(HashCode(phone, code)), TimeSpan.FromMinutes(_otpOptions.ExpiryMinutes));
+        var code = _otp.Issue(OtpPurpose.Login, phone);
 
         var sent = await _smsSender.SendAsync(phone,
-            $"Hafız Takip giriş kodunuz: {code}. Kod {_otpOptions.ExpiryMinutes} dakika geçerlidir. Kimseyle paylaşmayın.");
+            $"Hafız Takip giriş kodunuz: {code}. Kod {_otp.ExpiryMinutes} dakika geçerlidir. Kimseyle paylaşmayın.");
 
         if (!sent)
         {
-            _cache.Remove(OtpKey(phone));
+            _otp.Consume(OtpPurpose.Login, phone);
             return new ErrorResult("Doğrulama kodu şu anda gönderilemedi. Lütfen biraz sonra tekrar deneyin.");
         }
 
@@ -103,29 +102,18 @@ public class AuthService : IAuthService
     {
         var phone = PhoneNumberHelper.Normalize(verifyOtpDto.PhoneNumber);
 
-        if (!_cache.TryGetValue(OtpKey(phone), out OtpEntry? entry) || entry == null)
+        switch (_otp.Verify(OtpPurpose.Login, phone, verifyOtpDto.Code))
         {
-            return Unauthorized<TokenResponseDto>(InvalidCodeMessage);
-        }
-
-        if (entry.FailedAttempts >= _otpOptions.MaxVerifyAttempts)
-        {
-            _cache.Remove(OtpKey(phone));
-            return Unauthorized<TokenResponseDto>("Çok fazla hatalı deneme yapıldı. Lütfen yeni kod isteyin.");
-        }
-
-        if (!CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(entry.CodeHash),
-                Encoding.UTF8.GetBytes(HashCode(phone, verifyOtpDto.Code))))
-        {
-            entry.FailedAttempts++;
-            return Unauthorized<TokenResponseDto>(InvalidCodeMessage);
+            case OtpVerification.TooManyAttempts:
+                return Unauthorized<TokenResponseDto>("Çok fazla hatalı deneme yapıldı. Lütfen yeni kod isteyin.");
+            case OtpVerification.InvalidOrExpired:
+                return Unauthorized<TokenResponseDto>(InvalidCodeMessage);
         }
 
         var candidates = await _userDal.GetLoginCandidatesByPhoneAsync(phone);
         if (candidates.Count == 0)
         {
-            _cache.Remove(OtpKey(phone));
+            _otp.Consume(OtpPurpose.Login, phone);
             return Unauthorized<TokenResponseDto>(InvalidCodeMessage);
         }
 
@@ -152,9 +140,9 @@ public class AuthService : IAuthService
             user = candidates[0];
         }
 
-        _cache.Remove(OtpKey(phone));
+        _otp.Consume(OtpPurpose.Login, phone);
 
-        var response = await IssueTokensAsync(user);
+        var response = await CreateSessionAsync(user);
         return new SuccessDataResult<TokenResponseDto>(response, "Giriş başarılı.");
     }
 
@@ -180,7 +168,7 @@ public class AuthService : IAuthService
 
         var user = await _userDal.GetByIdAcrossTenantsAsync(stored.UserId);
         var tenant = user == null ? null : await _tenantDal.GetAsync(t => t.Id == user.TenantId);
-        if (user == null || tenant == null || !tenant.IsActive)
+        if (user == null || tenant == null || !TenantStatus.CanSignIn(tenant.Status, tenant.IsActive))
         {
             await _refreshTokenDal.RevokeAllForUserAsync(stored.UserId, now);
             return Unauthorized<TokenResponseDto>(InvalidSessionMessage);
@@ -192,7 +180,7 @@ public class AuthService : IAuthService
         stored.UpdatedAt = now;
         await _refreshTokenDal.RotateAsync(stored, replacement);
 
-        var response = BuildResponse(user, newToken, replacement);
+        var response = BuildResponse(user, tenant.Status, newToken, replacement);
         return new SuccessDataResult<TokenResponseDto>(response, "Oturum yenilendi.");
     }
 
@@ -215,11 +203,12 @@ public class AuthService : IAuthService
 
     // ── Yardımcılar ─────────────────────────────────────────────────
 
-    private async Task<TokenResponseDto> IssueTokensAsync(User user)
+    public async Task<TokenResponseDto> CreateSessionAsync(User user)
     {
+        var tenant = await _tenantDal.GetAsync(t => t.Id == user.TenantId);
         var (token, entity) = CreateRefreshToken(user, UtcNow);
         await _refreshTokenDal.AddAsync(entity);
-        return BuildResponse(user, token, entity);
+        return BuildResponse(user, tenant?.Status ?? string.Empty, token, entity);
     }
 
     private (string Token, RefreshToken Entity) CreateRefreshToken(User user, DateTime now)
@@ -236,7 +225,7 @@ public class AuthService : IAuthService
         return (token, entity);
     }
 
-    private TokenResponseDto BuildResponse(User user, string refreshToken, RefreshToken refreshEntity)
+    private TokenResponseDto BuildResponse(User user, string tenantStatus, string refreshToken, RefreshToken refreshEntity)
     {
         var accessToken = _tokenHelper.CreateToken(
             new PlatformUser { Id = user.Id, Email = user.Email ?? string.Empty },
@@ -251,6 +240,7 @@ public class AuthService : IAuthService
             RefreshTokenExpiration = refreshEntity.ExpiresAt,
             UserId = user.Id,
             TenantId = user.TenantId,
+            TenantStatus = tenantStatus,
             Role = user.Role,
             FirstName = user.FirstName,
             LastName = user.LastName
@@ -266,55 +256,12 @@ public class AuthService : IAuthService
             {
                 TenantId = u.TenantId,
                 TenantName = tenants.FirstOrDefault(t => t.Id == u.TenantId)?.Name ?? string.Empty,
+                TenantStatus = tenants.FirstOrDefault(t => t.Id == u.TenantId)?.Status ?? string.Empty,
                 Role = u.Role
             })
             .OrderBy(t => t.TenantName)
             .ToList();
     }
-
-    /// <summary>Bekleme süresi veya saatlik limit aşıldıysa hata, aksi halde null döner ve denemeyi kaydeder.</summary>
-    private IResult? CheckAndRegisterSendAttempt(string phone)
-    {
-        var cooldownKey = $"otp:cooldown:{phone}";
-        if (_cache.TryGetValue(cooldownKey, out DateTimeOffset retryAt))
-        {
-            var seconds = Math.Max(1, (int)Math.Ceiling((retryAt - _timeProvider.GetUtcNow()).TotalSeconds));
-            return new ErrorResult($"Yeni kod istemek için {seconds} saniye bekleyin.", ResultErrorType.TooManyRequests);
-        }
-
-        var hourlyKey = $"otp:hourly:{phone}";
-        var counter = _cache.GetOrCreate(hourlyKey, e =>
-        {
-            e.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
-            return new SendCounter();
-        })!;
-
-        if (counter.Count >= _otpOptions.MaxSendsPerHour)
-        {
-            return new ErrorResult("Bu numara için çok fazla kod istendi. Lütfen daha sonra tekrar deneyin.", ResultErrorType.TooManyRequests);
-        }
-
-        counter.Count++;
-        if (_otpOptions.ResendCooldownSeconds > 0)
-        {
-            var cooldown = TimeSpan.FromSeconds(_otpOptions.ResendCooldownSeconds);
-            _cache.Set(cooldownKey, _timeProvider.GetUtcNow().Add(cooldown), cooldown);
-        }
-        return null;
-    }
-
-    private string GenerateCode()
-    {
-        if (!string.IsNullOrEmpty(_otpOptions.FixedCode))
-            return _otpOptions.FixedCode;
-
-        var max = (int)Math.Pow(10, _otpOptions.CodeLength);
-        return RandomNumberGenerator.GetInt32(0, max).ToString(new string('0', _otpOptions.CodeLength));
-    }
-
-    private static string OtpKey(string phone) => $"otp:code:{phone}";
-
-    private static string HashCode(string phone, string code) => Sha256Hex($"{phone}:{code}");
 
     private static string HashToken(string token) => Sha256Hex(token);
 
@@ -326,16 +273,4 @@ public class AuthService : IAuthService
 
     private static ErrorDataResult<T> Unauthorized<T>(string message) =>
         new(message, ResultErrorType.Unauthorized);
-
-    private sealed class OtpEntry
-    {
-        public OtpEntry(string codeHash) => CodeHash = codeHash;
-        public string CodeHash { get; }
-        public int FailedAttempts { get; set; }
-    }
-
-    private sealed class SendCounter
-    {
-        public int Count { get; set; }
-    }
 }

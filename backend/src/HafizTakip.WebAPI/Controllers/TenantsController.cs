@@ -1,4 +1,5 @@
 using HafizTakip.Business.Abstract;
+using HafizTakip.Core.Utilities.Requests;
 using HafizTakip.Entities.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +7,7 @@ using HafizTakip.WebAPI.Security;
 
 namespace HafizTakip.WebAPI.Controllers;
 
+/// <summary>Platform yöneticisinin kurs yönetimi ve kurs başvurusu onayı.</summary>
 [Route("api/[controller]")]
 [ApiController]
 [Authorize(Policy = AuthorizationPolicies.SuperAdmin)]
@@ -18,10 +20,11 @@ public class TenantsController : ApiControllerBase
         _tenantService = tenantService;
     }
 
+    /// <summary>Kurs listesi. status=pending → onay bekleyen başvurular (en eskisi önce); search → ad/il.</summary>
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] HafizTakip.Core.Utilities.Requests.PaginationParams paginationParams)
+    public async Task<IActionResult> GetAll([FromQuery] TenantFilterDto filter, [FromQuery] PaginationParams paginationParams)
     {
-        var result = await _tenantService.GetAllAsync(paginationParams);
+        var result = await _tenantService.GetAllAsync(filter, paginationParams);
         return HandleResult(result);
     }
 
@@ -39,24 +42,29 @@ public class TenantsController : ApiControllerBase
         return HandleResult(result);
     }
 
-    // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpPut]
     public async Task<IActionResult> Update(UpdateTenantDto updateTenantDto)
     {
-        // TODO: Gelişmiş yetki (Authorization) ve validasyon kontrollerini gözden geçir.
-        // WARNING: Soft-delete veya güncelleme işlemlerinde TenantId izolasyonundan emin ol.
         var result = await _tenantService.UpdateAsync(updateTenantDto);
         return HandleResult(result);
     }
 
-    // İlerleyen aşamalarda bu metodları HTTP POST olarak değiştirmeyi planlayın.
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        // TODO: Gelişmiş yetki (Authorization) ve validasyon kontrollerini gözden geçir.
-        // WARNING: Soft-delete veya güncelleme işlemlerinde TenantId izolasyonundan emin ol.
         var result = await _tenantService.DeleteAsync(id);
         return HandleResult(result);
     }
-}
 
+    [HttpPost("{id}/approve")]
+    public async Task<IActionResult> Approve(Guid id)
+    {
+        return HandleResult(await _tenantService.ApproveAsync(id));
+    }
+
+    [HttpPost("{id}/reject")]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectCourseApplicationDto dto)
+    {
+        return HandleResult(await _tenantService.RejectAsync(id, dto));
+    }
+}

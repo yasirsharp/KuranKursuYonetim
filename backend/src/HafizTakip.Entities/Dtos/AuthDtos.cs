@@ -28,6 +28,7 @@ public class TenantOptionDto : IDto
 {
     public Guid TenantId { get; set; }
     public string TenantName { get; set; } = string.Empty;
+    public string TenantStatus { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
 }
 
@@ -40,6 +41,12 @@ public class TokenResponseDto : IDto
 
     public Guid UserId { get; set; }
     public Guid TenantId { get; set; }
+
+    /// <summary>
+    /// Kursun durumu. "pending" (onay bekliyor) veya "rejected" ise istemci yalnızca başvuru durumu ekranını gösterir;
+    /// diğer uçlar 403 + code "tenant_pending"/"tenant_rejected" döner.
+    /// </summary>
+    public string TenantStatus { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;

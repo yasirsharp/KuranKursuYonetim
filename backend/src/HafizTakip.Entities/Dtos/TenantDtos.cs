@@ -11,6 +11,20 @@ public class TenantDto : IDto
     public string? ContactEmail { get; set; }
     public string? ContactPhone { get; set; }
     public bool IsActive { get; set; }
+    public string? City { get; set; }
+    public string? District { get; set; }
+    public string? Address { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>Platform kurs listesi filtresi (ör. status=pending → onay bekleyen başvurular).</summary>
+public class TenantFilterDto : IDto
+{
+    public string? Status { get; set; }
+    public string? Search { get; set; }
 }
 
 public class CreateTenantDto : IDto

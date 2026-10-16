@@ -11,6 +11,7 @@ namespace HafizTakip.WebAPI.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [EnableRateLimiting(RateLimitPolicies.Auth)]
+[AllowPendingTenant] // refresh/logout onay bekleyen kursta da çalışmalı
 public class AuthController : ApiControllerBase
 {
     private readonly IAuthService _authService;
