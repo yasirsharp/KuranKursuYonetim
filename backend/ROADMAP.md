@@ -67,6 +67,17 @@
 
 ---
 
+## 📌 Bekleyen Kontroller (TODO)
+
+Proje sahibinin daha sonra ele alacağı, canlıya çıkmadan önce kapatılması gereken işler:
+
+| # | Konu | Ne yapılacak | Ne zamana kadar | İlgili dosyalar |
+|---|------|--------------|-----------------|-----------------|
+| 1 | Sure başlangıç sayfaları | Bir hocanın Türkiye ayetberkenar mushafından 114 surenin başlangıç sayfasını kontrol etmesi; farklar `02_quran_reference.sql`'e işlenip `db.ps1 -Migrate` çalıştırılır. Cüz eşlemesi formüle dayandığı için kesindir. | Ezber haritası / akıllı tekrar (Sprint 6–7) canlıya çıkmadan | `database/KURAN_REFERANS_KONTROL.md`, `database/02_quran_reference.sql` |
+| 2 | NetGSM SMS entegrasyonu | NetGSM hesabı açılıp onaylı mesaj başlığı alınacak; kullanıcı kodu, şifre ve başlık ortam değişkeniyle verilip gerçek gönderim uçtan uca denenecek. Geliştirme ortamı SMS yerine konsol kullanır. | Canlıya çıkış (Sprint 5 sonrası) | `backend/src/HafizTakip.Core/Utilities/Sms/NetGsmSmsSender.cs`, `appsettings.json` → `Sms` |
+
+---
+
 ## ⚠️ Dikkat Edilecekler
 1. **Asenkron Programlama:** Tüm veritabanı ve I/O işlemleri `async/await` kullanılarak asenkron çalışmalı, `.Result` yasaktır.
 2. **N+1 Problemi:** LINQ sorgularında `Include` kullanımları optimize edilmeli.

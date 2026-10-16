@@ -1,5 +1,8 @@
 # Kur'an Referans Verisi — Hoca Kontrol Listesi
 
+> **TODO (bekliyor):** Bu liste henüz kontrol edilmedi; proje sahibi daha sonra bir hocaya kontrol ettirecek.
+> Ezber haritası ve akıllı tekrar (Sprint 6–7) canlıya çıkmadan önce tamamlanmalı.
+
 Uygulama, Türkiye'de hafızlıkta kullanılan **ayetberkenar hafız mushafı (604 sayfa)** düzenini esas alır.
 Öğrencinin ilerleme haritası, ders kaydındaki sure bilgisi ve ileride akıllı tekrar planı bu veriye dayanır.
 

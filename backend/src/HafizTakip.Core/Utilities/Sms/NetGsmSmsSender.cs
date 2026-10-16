@@ -8,6 +8,9 @@ namespace HafizTakip.Core.Utilities.Sms;
 /// NetGSM HTTP GET SMS API'si ile tekil SMS gönderimi.
 /// Başarılı yanıt "00", "01" veya "02" ile başlar (ardından görev numarası gelir).
 /// </summary>
+// TODO(netgsm): Gerçek bir NetGSM hesabıyla henüz denenmedi. Proje sahibi daha sonra hesap açıp onaylı
+// mesaj başlığı alacak; ardından Sms:NetGsm:UserCode / Password / Header ortam değişkenleriyle verilip
+// gönderim, hata kodları ve Türkçe karakterli mesajlar uçtan uca doğrulanmalı. Canlıya çıkıştan önce zorunlu.
 public class NetGsmSmsSender : ISmsSender
 {
     private static readonly string[] SuccessCodes = { "00", "01", "02" };

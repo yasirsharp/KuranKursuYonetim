@@ -5,6 +5,10 @@
 --   Cüz eşlemesi formüldür: cüz 1 = s.1-21, cüz n = s.(20n-18)…(20n+1), cüz 30 = s.582-604.
 --   Sure başlangıç sayfaları aşağıdaki tablodadır.
 --
+-- TODO(hoca-kontrol): Sure başlangıç sayfaları henüz doğrulanmadı — proje sahibi daha sonra
+--   KURAN_REFERANS_KONTROL.md ile kontrol ettirecek. Akıllı tekrar / ezber haritası (Sprint 6-7)
+--   canlıya çıkmadan önce tamamlanmalı.
+--
 -- ⚠ DOĞRULAMA GEREKİR: Sure başlangıç sayfaları ilk taslak olarak hazırlanmıştır.
 --   Bir hocanın Türkiye ayetberkenar mushafından database/KURAN_REFERANS_KONTROL.md
 --   listesiyle kontrol etmesi ve farkları bu dosyaya işlemesi gerekir.
