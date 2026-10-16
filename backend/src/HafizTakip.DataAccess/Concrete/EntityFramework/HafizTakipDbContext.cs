@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using HafizTakip.Core.Entities;
 using HafizTakip.Core.Entities.Platform;
@@ -80,7 +81,53 @@ public class HafizTakipDbContext : DbContext
             b.Property(d => d.CompletedInEtut).HasColumnType("jsonb");
             b.Property(d => d.CompletedAtHome).HasColumnType("jsonb");
         });
+
+        ConfigureDateTimes(modelBuilder);
     }
+
+    // ── Tarih / zaman eşlemesi ──────────────────────────────────────
+
+    /// <summary>timestamptz: her zaman UTC yazılır ve UTC okunur (Kind'ı belirsiz değerler UTC kabul edilir).</summary>
+    private static readonly ValueConverter<DateTime, DateTime> UtcConverter = new(
+        v => v.Kind == DateTimeKind.Utc ? v
+            : v.Kind == DateTimeKind.Local ? v.ToUniversalTime()
+            : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+        v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+    /// <summary>date: yalnızca gün yazılır; saat ve saat dilimi bilgisi taşımaz.</summary>
+    private static readonly ValueConverter<DateTime, DateTime> CalendarDateConverter = new(
+        v => DateTime.SpecifyKind(v.Date, DateTimeKind.Unspecified),
+        v => DateTime.SpecifyKind(v, DateTimeKind.Unspecified));
+
+    /// <summary>
+    /// Şemada gün bilgisi tutan kolonlar DATE (adı "Date" olan veya "...Date" ile biten özellikler),
+    /// anlık zamanlar TIMESTAMPTZ'dir. Npgsql'in eski zaman davranışı kullanılmaz: o modda UTC değerler
+    /// "saat dilimsiz" gönderilip sunucu saat dilimine göre kaydırılıyordu (Türkiye'de 3 saat geri).
+    /// Yeni bir DateTime özelliği bu kurala göre kendiliğinden eşlenir.
+    /// </summary>
+    private static void ConfigureDateTimes(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties()
+                         .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?)))
+            {
+                if (IsCalendarDate(property.Name))
+                {
+                    property.SetColumnType("date");
+                    property.SetValueConverter(CalendarDateConverter);
+                }
+                else
+                {
+                    property.SetColumnType("timestamp with time zone");
+                    property.SetValueConverter(UtcConverter);
+                }
+            }
+        }
+    }
+
+    public static bool IsCalendarDate(string propertyName) =>
+        propertyName == "Date" || propertyName.EndsWith("Date", StringComparison.Ordinal);
 
     private static readonly MethodInfo ApplyTenantFilterMethod =
         typeof(HafizTakipDbContext).GetMethod(nameof(ApplyTenantFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;

@@ -16,9 +16,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
-// Npgsql 6.0+ DateTimeKind (UTC/Unspecified) uyumluluk anahtarı
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Yapılandırma doğrulaması ─────────────────────────────────────────

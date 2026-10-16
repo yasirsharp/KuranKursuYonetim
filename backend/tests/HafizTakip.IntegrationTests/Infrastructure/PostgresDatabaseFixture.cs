@@ -27,12 +27,6 @@ public sealed class PostgresDatabaseFixture : IAsyncLifetime
 
     public string ConnectionString { get; private set; } = string.Empty;
 
-    static PostgresDatabaseFixture()
-    {
-        // Uygulama ile aynı Npgsql zaman damgası davranışı (Program.cs)
-        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-    }
-
     public async Task InitializeAsync()
     {
         if (!IsAvailable) return;
