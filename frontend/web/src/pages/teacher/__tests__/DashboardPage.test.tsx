@@ -38,6 +38,10 @@ describe('DashboardPage', () => {
       todayLessonCount: 8,
       todayAttendanceRate: 90,
       averageCompletedPages: 45,
+      totalTeachers: 0,
+      totalGroups: 0,
+      activeStudents: 0,
+      hafizCount: 0,
     });
 
     vi.mocked(getStudents).mockResolvedValueOnce([
@@ -72,6 +76,10 @@ describe('DashboardPage', () => {
       todayLessonCount: 0,
       todayAttendanceRate: 0,
       averageCompletedPages: 0,
+      totalTeachers: 0,
+      totalGroups: 0,
+      activeStudents: 0,
+      hafizCount: 0,
     });
 
     vi.mocked(getStudents).mockResolvedValueOnce([]);

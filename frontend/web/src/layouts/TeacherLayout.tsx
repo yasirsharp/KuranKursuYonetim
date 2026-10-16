@@ -23,8 +23,18 @@ export default function TeacherLayout() {
           <span>☪️</span>
           <span>Hafız Takip</span>
         </div>
-        <div className="teacher-header-date">
-          <span>{today}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="teacher-header-date">
+            <span>{today}</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Daha fazla"
+            onClick={() => navigate('/more')}
+            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 9, padding: '4px 6px', cursor: 'pointer', display: 'flex' }}
+          >
+            <Icon name="more" size={20} color="#fff" />
+          </button>
         </div>
       </div>
 

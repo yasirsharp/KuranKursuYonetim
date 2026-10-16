@@ -2,34 +2,57 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/auth/LoginPage';
 import OtpVerifyPage from './pages/auth/OtpVerifyPage';
+import CourseApplicationPage from './pages/auth/CourseApplicationPage';
+import ApplicationStatusPage from './pages/auth/ApplicationStatusPage';
 import TeacherLayout from './layouts/TeacherLayout';
+import PlatformLayout from './layouts/PlatformLayout';
 import DashboardPage from './pages/teacher/DashboardPage';
 import StudentListPage from './pages/teacher/StudentListPage';
 import StudentDetailPage from './pages/teacher/StudentDetailPage';
 import LessonFormPage from './pages/teacher/LessonFormPage';
 import StudentFormPage from './pages/teacher/StudentFormPage';
+import SettingsPage from './pages/teacher/SettingsPage';
+import MorePage from './pages/teacher/MorePage';
+import PlatformLoginPage from './pages/platform/PlatformLoginPage';
+import PlatformTenantsPage from './pages/platform/PlatformTenantsPage';
 
 import AttendancePage from './pages/teacher/AttendancePage';
 import EtutPage from './pages/teacher/EtutPage';
 
+import { isApplicationOnly, isPlatformUser } from './services/session';
+import { homePathFor, PATHS } from './utils/navigation';
+
 import './styles/globals.css';
 import './styles/layouts.css';
+import './styles/forms.css';
 
-/** Korumalı rotalar — login olmadan erişilemez */
+/** Kurs uygulaması — giriş gerekir; onay bekleyen kurs ve platform yöneticisi kendi ekranlarına gider */
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  const { user } = useAuth();
+  if (!user) return <Navigate to={PATHS.login} replace />;
+  if (isPlatformUser(user) || isApplicationOnly(user)) return <Navigate to={homePathFor(user)} replace />;
   return <>{children}</>;
 }
 
-/** Giriş yapmışsa login'e gitmesin */
+/** Başvuru durumu ekranı — yalnızca kurs kullanıcıları */
+function ApplicationRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to={PATHS.login} replace />;
+  if (isPlatformUser(user)) return <Navigate to={PATHS.platform} replace />;
+  return <>{children}</>;
+}
+
+/** Platform paneli — yalnızca platform yöneticisi */
+function PlatformRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user || !isPlatformUser(user)) return <Navigate to={PATHS.platformLogin} replace />;
+  return <>{children}</>;
+}
+
+/** Giriş yapmışsa giriş/başvuru sayfalarını göstermeden kendi ana sayfasına gider */
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+  const { user } = useAuth();
+  if (user) return <Navigate to={homePathFor(user)} replace />;
   return <>{children}</>;
 }
 
@@ -39,8 +62,23 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Auth sayfaları */}
-          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route path="/verify-otp" element={<PublicRoute><OtpVerifyPage /></PublicRoute>} />
+          <Route path={PATHS.login} element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path={PATHS.verifyOtp} element={<PublicRoute><OtpVerifyPage /></PublicRoute>} />
+          <Route path={PATHS.courseApplication} element={<PublicRoute><CourseApplicationPage /></PublicRoute>} />
+          <Route path={PATHS.applicationStatus} element={<ApplicationRoute><ApplicationStatusPage /></ApplicationRoute>} />
+
+          {/* Platform yöneticisi */}
+          <Route path={PATHS.platformLogin} element={<PublicRoute><PlatformLoginPage /></PublicRoute>} />
+          <Route
+            path={PATHS.platform}
+            element={
+              <PlatformRoute>
+                <PlatformLayout />
+              </PlatformRoute>
+            }
+          >
+            <Route index element={<PlatformTenantsPage />} />
+          </Route>
 
           {/* Teacher Layout Sayfaları */}
           <Route
@@ -59,7 +97,8 @@ export default function App() {
             <Route path="lessons/new" element={<LessonFormPage />} />
             <Route path="attendance" element={<AttendancePage />} />
             <Route path="etut" element={<EtutPage />} />
-            <Route path="more" element={<div style={{padding: 20}}>Daha Fazla Menüsü (Yapım Aşamasında)</div>} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="more" element={<MorePage />} />
           </Route>
 
           {/* 404 → Ana sayfaya yönlendir */}

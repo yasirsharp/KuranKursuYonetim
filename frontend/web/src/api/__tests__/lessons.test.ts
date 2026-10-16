@@ -19,7 +19,7 @@ describe('lessons api', () => {
   describe('getLessons', () => {
     it('backend PagedResult yanıtını diziye açmalı', async () => {
       const mockLessons = [
-        { id: 'l1', juzNumber: 1, pageNumber: 5, performance: 'iyi' },
+        { id: 'l1', cuzNo: 1, pageNo: 5, performance: 'iyi' },
       ];
 
       vi.mocked(apiClient.get).mockResolvedValueOnce({
@@ -39,7 +39,7 @@ describe('lessons api', () => {
       expect(apiClient.get).toHaveBeenCalledWith('/api/lessons?page=1&pageSize=100');
       expect(Array.isArray(result)).toBe(true);
       expect(result).toHaveLength(1);
-      expect(result[0]?.pageNumber).toBe(5);
+      expect(result[0]?.pageNo).toBe(5);
     });
   });
 
@@ -47,7 +47,7 @@ describe('lessons api', () => {
     it('öğrenci derslerini backend rotasıyla (/api/lessons/student/{id}) çağırmalı ve dizi dönmeli', async () => {
       const studentId = 'student-123';
       const mockLessons = [
-        { id: 'l2', studentId, juzNumber: 2, pageNumber: 10 },
+        { id: 'l2', studentId, cuzNo: 2, pageNo: 10 },
       ];
 
       vi.mocked(apiClient.get).mockResolvedValueOnce({
@@ -69,13 +69,13 @@ describe('lessons api', () => {
       );
       expect(Array.isArray(result)).toBe(true);
       expect(result).toHaveLength(1);
-      expect(result[0]?.juzNumber).toBe(2);
+      expect(result[0]?.cuzNo).toBe(2);
     });
   });
 
   describe('getLessonById', () => {
     it('tekil ders nesnesini getirmeli', async () => {
-      const lesson = { id: 'l1', pageNumber: 12 };
+      const lesson = { id: 'l1', pageNo: 12 };
       vi.mocked(apiClient.get).mockResolvedValueOnce({
         data: { success: true, data: lesson },
       });

@@ -1,13 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { verifyOtp } from '../../api/auth';
+import { toAuthUser, verifyOtp } from '../../api/auth';
+import { getErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Logger } from '../../services/logger';
 import AuthLayout from '../../layouts/AuthLayout';
-import type { UserRole } from '../../types/auth';
+import { homePathFor, PATHS } from '../../utils/navigation';
+import { TENANT_STATUS_LABELS } from '../../types/course';
+import type { ITenantOption } from '../../types/auth';
 
 const log = Logger.create('OtpVerifyPage');
 const OTP_LENGTH = 6;
+
+const ROLE_LABELS: Record<string, string> = {
+  tenant_admin: 'Kurs müdürü',
+  head_teacher: 'Başhoca',
+  assistant_teacher: 'Yardımcı hoca',
+  parent: 'Veli',
+  student: 'Öğrenci',
+};
 
 export default function OtpVerifyPage() {
   const location = useLocation();
@@ -18,26 +29,36 @@ export default function OtpVerifyPage() {
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Numara birden fazla kursta kayıtlıysa kurs seçimi
+  const [tenantOptions, setTenantOptions] = useState<ITenantOption[] | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Telefon numarası yoksa login'e yönlendir
   useEffect(() => {
     if (!phoneNumber) {
       log.warn('mount', 'Telefon numarası yok — login sayfasına yönlendiriliyor');
-      navigate('/login', { replace: true });
+      navigate(PATHS.login, { replace: true });
     }
   }, [phoneNumber, navigate]);
 
   const handleChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
+    const digits = value.replace(/\D/g, '');
+    if (value && !digits) return;
 
+    // Hızlı yazım veya telefonun SMS'ten otomatik doldurması birden fazla rakamı tek kutuya getirebilir:
+    // rakamlar bu kutudan itibaren dağıtılır
     const newOtp = [...otp];
-    newOtp[index] = value.slice(-1);
+    // Dolu kutuya tek rakam yazılırsa ("3" → "37") yalnızca yeni rakam alınır
+    const typedOverExisting = digits.length === 2 && !!otp[index] && digits.startsWith(otp[index]!);
+    const chars = digits.length > 1 && !typedOverExisting
+      ? digits.slice(0, OTP_LENGTH - index).split('')
+      : [digits.slice(-1)];
+    chars.forEach((c, i) => { newOtp[index + i] = c; });
     setOtp(newOtp);
 
-    // Sonraki input'a odaklan
-    if (value && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
+    // Sonraki boş kutuya odaklan
+    if (digits && index < OTP_LENGTH - 1) {
+      inputRefs.current[Math.min(index + chars.length, OTP_LENGTH - 1)]?.focus();
     }
   };
 
@@ -58,49 +79,87 @@ export default function OtpVerifyPage() {
     inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    const code = otp.join('');
-    if (code.length !== OTP_LENGTH) {
-      setError('Lütfen 6 haneli kodu eksiksiz girin.');
-      return;
-    }
-
+  const verify = async (tenantId?: string) => {
     if (!phoneNumber) return;
+    const code = otp.join('');
 
     setLoading(true);
-    log.info('handleSubmit', 'OTP doğrulanıyor', { phone: phoneNumber });
+    setError('');
+    log.info('verify', 'OTP doğrulanıyor', { phone: phoneNumber, tenantId });
 
     try {
-      const result = await verifyOtp({ phoneNumber, code });
-      log.info('handleSubmit', 'Giriş başarılı', {
-        name: `${result.firstName} ${result.lastName}`,
-        role: result.role,
-      });
+      const result = await verifyOtp({ phoneNumber, code, tenantId });
 
-      login({
-        token: result.token,
-        tenantId: result.tenantId,
-        role: result.role as UserRole,
-        firstName: result.firstName,
-        lastName: result.lastName,
-        expiration: result.expiration,
-      });
+      if (result.requiresTenantSelection) {
+        // Kod doğru ama numara birden fazla kursta kayıtlı: kod tüketilmedi, kurs seçilince aynı kodla tekrar doğrulanır
+        setTenantOptions(result.tenants);
+        return;
+      }
 
-      navigate('/', { replace: true });
+      log.info('verify', 'Giriş başarılı', { name: `${result.firstName} ${result.lastName}`, role: result.role });
+      const user = toAuthUser(result);
+      login(user);
+      navigate(homePathFor(user), { replace: true });
     } catch (err) {
-      log.error('handleSubmit', 'OTP doğrulama başarısız', err);
-      setError('Geçersiz veya süresi dolmuş kod.');
-      setOtp(Array(OTP_LENGTH).fill(''));
-      inputRefs.current[0]?.focus();
+      log.error('verify', 'OTP doğrulama başarısız', err);
+      setError(getErrorMessage(err, 'Geçersiz veya süresi dolmuş kod.'));
+      if (!tenantId) {
+        setOtp(Array(OTP_LENGTH).fill(''));
+        inputRefs.current[0]?.focus();
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otp.join('').length !== OTP_LENGTH) {
+      setError('Lütfen 6 haneli kodu eksiksiz girin.');
+      return;
+    }
+    await verify();
+  };
+
   if (!phoneNumber) return null;
+
+  if (tenantOptions) {
+    return (
+      <AuthLayout>
+        <div className="auth-form">
+          <h2 className="auth-form-title">Kurs Seçin</h2>
+          <p className="auth-form-hint">Numaranız birden fazla kursta kayıtlı. Hangisine giriş yapmak istiyorsunuz?</p>
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <div className="form-stack">
+            {tenantOptions.map((t) => (
+              <button
+                key={t.tenantId}
+                type="button"
+                className="info-card"
+                style={{ cursor: 'pointer', textAlign: 'left' }}
+                disabled={loading}
+                onClick={() => verify(t.tenantId)}
+              >
+                <div className="info-card-header">
+                  <span className="info-card-title">{t.tenantName}</span>
+                  {t.tenantStatus !== 'active' && (
+                    <span className={`status-badge status-${t.tenantStatus}`}>{TENANT_STATUS_LABELS[t.tenantStatus]}</span>
+                  )}
+                </div>
+                <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>{ROLE_LABELS[t.role] ?? t.role}</span>
+              </button>
+            ))}
+          </div>
+
+          <span className="auth-back-link" onClick={() => navigate(PATHS.login)}>
+            ← Farklı numara ile giriş yap
+          </span>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>
@@ -120,7 +179,8 @@ export default function OtpVerifyPage() {
               className="otp-input"
               type="text"
               inputMode="numeric"
-              maxLength={1}
+              autoComplete={index === 0 ? 'one-time-code' : 'off'}
+              aria-label={`Kodun ${index + 1}. hanesi`}
               value={digit}
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
@@ -137,7 +197,7 @@ export default function OtpVerifyPage() {
           {loading ? 'Doğrulanıyor...' : 'Giriş Yap'}
         </button>
 
-        <span className="auth-back-link" onClick={() => navigate('/login')}>
+        <span className="auth-back-link" onClick={() => navigate(PATHS.login)}>
           ← Farklı numara ile giriş yap
         </span>
       </form>
