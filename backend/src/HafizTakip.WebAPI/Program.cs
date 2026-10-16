@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using HafizTakip.Business.DependencyResolvers.Autofac;
@@ -32,13 +33,17 @@ if (tokenErrors.Count > 0)
 if (!builder.Environment.IsDevelopment() && tokenOptions.SecurityKey.StartsWith("DEV-ONLY-"))
     throw new InvalidOperationException("Geliştirme JWT anahtarı geliştirme dışı bir ortamda kullanılamaz.");
 
+// Test sunucusu (ASPNETCORE_ENVIRONMENT=Staging): gerçek SMS yok, sabit doğrulama kodu kullanılabilir.
+// Canlı ortamda (Production) ikisi de yasaktır; uygulama başlamaz.
+var isTestEnvironment = builder.Environment.IsDevelopment() || builder.Environment.IsStaging();
+
 var otpOptions = builder.Configuration.GetSection("Otp").Get<OtpOptions>() ?? new OtpOptions();
-if (!builder.Environment.IsDevelopment() && !string.IsNullOrEmpty(otpOptions.FixedCode))
-    throw new InvalidOperationException("Otp:FixedCode yalnızca geliştirme ortamında kullanılabilir.");
+if (!isTestEnvironment && !string.IsNullOrEmpty(otpOptions.FixedCode))
+    throw new InvalidOperationException("Otp:FixedCode yalnızca geliştirme ve test (Staging) ortamında kullanılabilir.");
 
 var smsSettings = builder.Configuration.GetSection("Sms").Get<SmsSettings>() ?? new SmsSettings();
-if (!builder.Environment.IsDevelopment() && smsSettings.Provider != SmsSettings.NetGsmProvider)
-    throw new InvalidOperationException("Geliştirme dışı ortamda Sms:Provider 'netgsm' olmalıdır.");
+if (!isTestEnvironment && smsSettings.Provider != SmsSettings.NetGsmProvider)
+    throw new InvalidOperationException("Canlı ortamda Sms:Provider 'netgsm' olmalıdır.");
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 
@@ -163,8 +168,24 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Panelli hosting / Nginx gibi aynı makinedeki ters vekil arkasında gerçek istemci IP'si
+// (hız sınırı IP başına çalışır). Varsayılan olarak yalnızca loopback vekile güvenilir.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 // Custom Exception Middleware
 app.ConfigureCustomExceptionMiddleware();
+
+// Yayın paketinde React uygulaması wwwroot'tadır: aynı alan adından sunulur (CORS gerekmez).
+// Geliştirmede wwwroot yoktur; frontend Vite ile ayrı çalışır.
+var serveSpa = File.Exists(Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "index.html"));
+if (serveSpa)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 
 app.UseCors("Frontend");
 
@@ -178,6 +199,13 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
+
+if (serveSpa)
+{
+    // Bilinmeyen API adresi 404 dönsün; diğer her adres React yönlendiricisine (index.html) gider
+    app.MapFallback("/api/{**rest}", () => Results.NotFound());
+    app.MapFallbackToFile("index.html");
+}
 
 // Şema EF tarafından oluşturulmaz (SQL script-first): veritabanını database/db.ps1 -Setup ile kurun.
 // SADECE GELİŞTİRME ORTAMI İÇİN — test verisi üreten uç
