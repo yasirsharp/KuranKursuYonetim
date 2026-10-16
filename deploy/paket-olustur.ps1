@@ -27,7 +27,10 @@ param(
     [ValidateSet('', 'win-x64', 'linux-x64')]
     [string]$Runtime = '',
 
-    [string]$ConnectionString = ''
+    [string]$ConnectionString = '',
+
+    # Boş: rastgele üretilir. Sunucuya her yüklemede aynı anahtar verilmezse açık oturumlar düşer.
+    [string]$JwtKey = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,12 +70,15 @@ Remove-Item (Join-Path $app 'appsettings.Development.json') -ErrorAction Silentl
 # 3) React uygulaması API'nin wwwroot klasörüne
 Copy-Item (Join-Path $root 'frontend\web\dist') (Join-Path $app 'wwwroot') -Recurse
 
-# 4) Ortam ayarları (gizli): rastgele JWT anahtarı
-$keyBytes = New-Object byte[] 64
-[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($keyBytes)
+# 4) Ortam ayarları (gizli): JWT anahtarı verilmediyse rastgele
+if (-not $JwtKey) {
+    $keyBytes = New-Object byte[] 64
+    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($keyBytes)
+    $JwtKey = [Convert]::ToBase64String($keyBytes)
+}
 $settings = [ordered]@{
     ConnectionStrings = [ordered]@{ PostgreSqlConnection = $ConnectionString }
-    TokenOptions      = [ordered]@{ SecurityKey = [Convert]::ToBase64String($keyBytes) }
+    TokenOptions      = [ordered]@{ SecurityKey = $JwtKey }
     Logging           = [ordered]@{ LogLevel = [ordered]@{ Default = 'Information'; 'Microsoft.AspNetCore' = 'Warning' } }
 }
 if ($Ortam -eq 'Staging') {

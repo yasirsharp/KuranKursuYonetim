@@ -18,3 +18,6 @@ dist/
 
 # Yayın paketi çıktısı (gizli ayar dosyası içerir)
 deploy/out/
+
+# Yerel gizli ayarlar (FTP, veritabanı, SMTP şifreleri) — depoya girmez
+/.env
