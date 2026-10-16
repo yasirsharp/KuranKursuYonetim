@@ -25,15 +25,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'ortak.ps1')
 $root = Split-Path $PSScriptRoot -Parent
 $envFile = Join-Path $root '.env'
-if (-not (Test-Path $envFile)) { throw ".env bulunamadı: $envFile" }
-
-$cfg = @{}
-Get-Content $envFile -Encoding UTF8 | Where-Object { $_ -match '=' -and -not $_.TrimStart().StartsWith('#') } | ForEach-Object {
-    $parts = $_.Split('=', 2)
-    $cfg[$parts[0].Trim()] = $parts[1].Trim()
-}
+$cfg = Read-DotEnv $envFile
 
 foreach ($key in 'FTP_HOST', 'FTP_USER', 'FTP_PASS', 'HAFIZ_FTP_REMOTE_DIR', 'HAFIZ_DB_CONNECTION') {
     if ([string]::IsNullOrWhiteSpace($cfg[$key])) { throw ".env içinde $key eksik." }
@@ -54,9 +49,13 @@ if ([string]::IsNullOrWhiteSpace($cfg['HAFIZ_JWT_KEY'])) {
     Write-Host "HAFIZ_JWT_KEY üretildi ve .env'e eklendi." -ForegroundColor Yellow
 }
 
-# 1) Paket: Windows IIS için kendi çalışma zamanıyla (sunucuda .NET 8 kurulu olmasa da çalışır)
-& (Join-Path $PSScriptRoot 'paket-olustur.ps1') -Ortam $Ortam -Runtime 'win-x64' `
-    -ConnectionString $cfg['HAFIZ_DB_CONNECTION'] -JwtKey $cfg['HAFIZ_JWT_KEY']
+# 1) Paket: sunucudaki .NET 8 (ASP.NET Core) çalışma zamanını kullanır — Natro sunucusunda kurulu
+#    (diğer .NET sitelerin de böyle çalışıyor). Kurulu olmayan bir sunucuda -Runtime win-x64 verin.
+#    Bağlantı .env'de Neon URI'si olabilir; uygulamaya Npgsql biçiminde ve HAFIZ_DB_NAME veritabanıyla verilir.
+$dbName = if ($cfg['HAFIZ_DB_NAME']) { $cfg['HAFIZ_DB_NAME'] } else { 'hafiztakip' }
+$connectionString = ConvertTo-NpgsqlConnectionString (Get-PgConnectionInfo $cfg['HAFIZ_DB_CONNECTION'] -Database $dbName)
+& (Join-Path $PSScriptRoot 'paket-olustur.ps1') -Ortam $Ortam -Runtime '' `
+    -ConnectionString $connectionString -JwtKey $cfg['HAFIZ_JWT_KEY']
 $appDir = Join-Path $PSScriptRoot 'out\app'
 if (-not (Test-Path (Join-Path $appDir 'web.config'))) { throw 'Paket hazırlanamadı (web.config yok).' }
 
