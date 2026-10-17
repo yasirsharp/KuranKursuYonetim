@@ -48,7 +48,7 @@ if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory -Path $app | Out-Null
 
 # 1) Frontend
-Push-Location (Join-Path $root 'frontend\web')
+Push-Location (Join-Path $root 'frontend/web')
 try {
     if (-not (Test-Path 'node_modules')) { Invoke-Native 'npm ci' { npm ci } }
     $env:VITE_SHOW_DEV_HINTS = if ($Ortam -eq 'Staging') { 'true' } else { 'false' }
@@ -59,7 +59,7 @@ try {
 }
 
 # 2) API (web.config içine ASPNETCORE_ENVIRONMENT yazılır)
-$publishArgs = @('publish', (Join-Path $root 'backend\src\HafizTakip.WebAPI\HafizTakip.WebAPI.csproj'),
+$publishArgs = @('publish', (Join-Path $root 'backend/src/HafizTakip.WebAPI/HafizTakip.WebAPI.csproj'),
     '-c', 'Release', '-o', $app, "-p:EnvironmentName=$Ortam", '-nologo', '-v', 'q')
 if ($Runtime) { $publishArgs += @('-r', $Runtime, '--self-contained', 'true') }
 Invoke-Native 'API yayınlanıyor' { dotnet @publishArgs }
@@ -68,7 +68,7 @@ Invoke-Native 'API yayınlanıyor' { dotnet @publishArgs }
 Remove-Item (Join-Path $app 'appsettings.Development.json') -ErrorAction SilentlyContinue
 
 # 3) React uygulaması API'nin wwwroot klasörüne
-Copy-Item (Join-Path $root 'frontend\web\dist') (Join-Path $app 'wwwroot') -Recurse
+Copy-Item (Join-Path $root 'frontend/web/dist') (Join-Path $app 'wwwroot') -Recurse
 
 # 4) Ortam ayarları (gizli): JWT anahtarı verilmediyse rastgele
 if (-not $JwtKey) {
@@ -91,9 +91,9 @@ $settingsJson = $settings | ConvertTo-Json -Depth 5
 # 5) Veritabanı betikleri
 $db = Join-Path $out 'database'
 New-Item -ItemType Directory -Path $db | Out-Null
-Copy-Item (Join-Path $root 'database\00_full_schema.sql'), (Join-Path $root 'database\02_quran_reference.sql') $db
-if ($Ortam -eq 'Staging') { Copy-Item (Join-Path $root 'database\01_seed_data.sql') $db }
-Copy-Item (Join-Path $root 'database\migrations') (Join-Path $db 'migrations') -Recurse
+Copy-Item (Join-Path $root 'database/00_full_schema.sql'), (Join-Path $root 'database/02_quran_reference.sql') $db
+if ($Ortam -eq 'Staging') { Copy-Item (Join-Path $root 'database/01_seed_data.sql') $db }
+Copy-Item (Join-Path $root 'database/migrations') (Join-Path $db 'migrations') -Recurse
 
 # 6) Kurulum notu
 $readme = @"

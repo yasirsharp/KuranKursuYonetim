@@ -1,11 +1,23 @@
 ﻿# Yayın betiklerinin ortak yardımcıları (dot-source ile yüklenir). Gizli değerleri ekrana yazmaz.
 
+# Yayın betiklerinin kullandığı ayarlar. .env'de olmayanlar ortam değişkenlerinden alınır
+# (bulut/CI ortamında .env yoktur; değerler ortamın gizli değişkenleri olarak verilir).
+$script:DeploySettingKeys = @(
+    'FTP_HOST', 'FTP_USER', 'FTP_PASS',
+    'HAFIZ_FTP_REMOTE_DIR', 'HAFIZ_DB_CONNECTION', 'HAFIZ_DB_NAME', 'HAFIZ_JWT_KEY', 'HAFIZ_PLATFORM_ADMIN_PASSWORD'
+)
+
 function Read-DotEnv([string]$Path) {
-    if (-not (Test-Path $Path)) { throw ".env bulunamadı: $Path" }
     $cfg = @{}
-    Get-Content $Path -Encoding UTF8 | Where-Object { $_ -match '=' -and -not $_.TrimStart().StartsWith('#') } | ForEach-Object {
-        $parts = $_.Split('=', 2)
-        $cfg[$parts[0].Trim().TrimStart([char]0xFEFF)] = $parts[1].Trim()
+    if (Test-Path $Path) {
+        Get-Content $Path -Encoding UTF8 | Where-Object { $_ -match '=' -and -not $_.TrimStart().StartsWith('#') } | ForEach-Object {
+            $parts = $_.Split('=', 2)
+            $cfg[$parts[0].Trim().TrimStart([char]0xFEFF)] = $parts[1].Trim()
+        }
+    }
+    foreach ($key in $script:DeploySettingKeys) {
+        $value = [Environment]::GetEnvironmentVariable($key)
+        if ([string]::IsNullOrWhiteSpace($cfg[$key]) -and -not [string]::IsNullOrWhiteSpace($value)) { $cfg[$key] = $value.Trim() }
     }
     return $cfg
 }

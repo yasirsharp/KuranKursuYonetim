@@ -39,7 +39,7 @@ try {
     if ($Status) { $dbArgs.Status = $true }
     if ($NoSeed) { $dbArgs.NoSeed = $true }
     if ($Force) { $dbArgs.Force = $true }
-    & (Join-Path $root 'database\db.ps1') @dbArgs
+    & (Join-Path $root 'database/db.ps1') @dbArgs
 } finally {
     Remove-Item Env:\PGPASSWORD, Env:\PGSSLMODE -ErrorAction SilentlyContinue
 }

@@ -31,7 +31,7 @@ $envFile = Join-Path $root '.env'
 $cfg = Read-DotEnv $envFile
 
 foreach ($key in 'FTP_HOST', 'FTP_USER', 'FTP_PASS', 'HAFIZ_FTP_REMOTE_DIR', 'HAFIZ_DB_CONNECTION') {
-    if ([string]::IsNullOrWhiteSpace($cfg[$key])) { throw ".env içinde $key eksik." }
+    if ([string]::IsNullOrWhiteSpace($cfg[$key])) { throw "$key eksik (.env dosyasında veya ortam değişkeni olarak verin)." }
 }
 
 # Hedef yalnızca /httpdocs altındaki bir alt klasör olabilir (ana siteyi ezmemek için)
@@ -40,7 +40,11 @@ if ($remoteDir -notmatch '^/httpdocs/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$') {
     throw "HAFIZ_FTP_REMOTE_DIR '/httpdocs/<alt-klasör>' biçiminde olmalı (şu an: $remoteDir). Ana site köküne yükleme yapılmaz."
 }
 
-# Oturum anahtarı sabit kalsın: yoksa üret ve .env'e ekle
+# Oturum anahtarı sabit kalsın: yoksa üret ve .env'e ekle. .env yoksa (bulut/CI) üretmek açık oturumları
+# düşürür ve anahtar kaybolur; orada HAFIZ_JWT_KEY ortam değişkeni zorunludur.
+if ([string]::IsNullOrWhiteSpace($cfg['HAFIZ_JWT_KEY']) -and -not (Test-Path $envFile)) {
+    throw 'HAFIZ_JWT_KEY eksik: .env olmayan ortamda sunucudaki anahtar ortam değişkeni olarak verilmelidir.'
+}
 if ([string]::IsNullOrWhiteSpace($cfg['HAFIZ_JWT_KEY'])) {
     $bytes = New-Object byte[] 64
     [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
@@ -56,7 +60,7 @@ $dbName = if ($cfg['HAFIZ_DB_NAME']) { $cfg['HAFIZ_DB_NAME'] } else { 'hafiztaki
 $connectionString = ConvertTo-NpgsqlConnectionString (Get-PgConnectionInfo $cfg['HAFIZ_DB_CONNECTION'] -Database $dbName)
 & (Join-Path $PSScriptRoot 'paket-olustur.ps1') -Ortam $Ortam -Runtime '' `
     -ConnectionString $connectionString -JwtKey $cfg['HAFIZ_JWT_KEY']
-$appDir = Join-Path $PSScriptRoot 'out\app'
+$appDir = Join-Path $PSScriptRoot 'out/app'
 if (-not (Test-Path (Join-Path $appDir 'web.config'))) { throw 'Paket hazırlanamadı (web.config yok).' }
 
 if ($SkipUpload) {
@@ -99,7 +103,7 @@ function Remove-FtpFile([string]$remotePath) {
 
 # 3) Bakım modu -> dosyalar -> bakım modundan çık
 New-FtpDirectory $remoteDir
-$offline = Join-Path $env:TEMP 'app_offline.htm'
+$offline = Join-Path ([IO.Path]::GetTempPath()) 'app_offline.htm'
 [IO.File]::WriteAllText($offline, '<!doctype html><meta charset="utf-8"><title>Güncelleniyor</title><p style="font-family:sans-serif;text-align:center;margin-top:20vh">Hafız Takip güncelleniyor, lütfen birkaç dakika sonra tekrar deneyin.</p>', (New-Object Text.UTF8Encoding $false))
 Send-FtpFile $offline "$remoteDir/app_offline.htm"
 Write-Host "Bakım modu açıldı; uygulamanın durması bekleniyor..." -ForegroundColor Yellow
