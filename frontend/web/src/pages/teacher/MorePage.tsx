@@ -38,6 +38,13 @@ export default function MorePage() {
             <span className="menu-item-hint">{user?.role === 'tenant_admin' ? 'Düzenle' : 'Görüntüle'}</span>
           </button>
         )}
+        {isStaff && (
+          <button className="menu-item" onClick={() => navigate(PATHS.calendar)}>
+            <Icon name="cal" size={20} color="var(--color-green)" />
+            Dönem ve Takvim
+            <span className="menu-item-hint">Tatiller, ders günleri</span>
+          </button>
+        )}
         <button className="menu-item menu-item-danger" onClick={handleLogout}>
           <Icon name="back" size={20} color="var(--color-red)" />
           Çıkış Yap

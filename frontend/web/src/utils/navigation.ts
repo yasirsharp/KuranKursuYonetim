@@ -9,6 +9,7 @@ export const PATHS = {
   platformLogin: '/platform/giris',
   platform: '/platform',
   settings: '/settings',
+  calendar: '/calendar',
   more: '/more',
 } as const;
 

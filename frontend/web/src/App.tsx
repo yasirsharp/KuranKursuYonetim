@@ -12,6 +12,7 @@ import StudentDetailPage from './pages/teacher/StudentDetailPage';
 import LessonFormPage from './pages/teacher/LessonFormPage';
 import StudentFormPage from './pages/teacher/StudentFormPage';
 import SettingsPage from './pages/teacher/SettingsPage';
+import CalendarPage from './pages/teacher/CalendarPage';
 import MorePage from './pages/teacher/MorePage';
 import PlatformLoginPage from './pages/platform/PlatformLoginPage';
 import PlatformTenantsPage from './pages/platform/PlatformTenantsPage';
@@ -98,6 +99,7 @@ export default function App() {
             <Route path="attendance" element={<AttendancePage />} />
             <Route path="etut" element={<EtutPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
             <Route path="more" element={<MorePage />} />
           </Route>
 
