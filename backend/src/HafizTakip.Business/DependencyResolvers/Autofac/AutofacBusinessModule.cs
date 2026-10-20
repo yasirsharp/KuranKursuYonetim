@@ -76,6 +76,10 @@ public class AutofacBusinessModule : Module
         builder.RegisterType<EfStudentParentDal>().As<IStudentParentDal>().InstancePerLifetimeScope();
         builder.RegisterType<StudentParentManager>().As<IStudentParentService>().InstancePerLifetimeScope();
 
+        builder.RegisterType<EfAcademicTermDal>().As<IAcademicTermDal>().InstancePerLifetimeScope();
+        builder.RegisterType<EfCalendarEventDal>().As<ICalendarEventDal>().InstancePerLifetimeScope();
+        builder.RegisterType<CalendarManager>().As<ICalendarService>().InstancePerLifetimeScope();
+
         // AOP Interceptor Kaydı
         var assembly = System.Reflection.Assembly.GetExecutingAssembly();
 
