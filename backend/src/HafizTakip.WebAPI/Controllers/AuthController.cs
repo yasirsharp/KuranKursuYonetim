@@ -33,6 +33,18 @@ public class AuthController : ApiControllerBase
         return HandleResult(await _authService.VerifyOtpAsync(verifyOtpDto));
     }
 
+    [HttpPost("send-email-code")]
+    public async Task<IActionResult> SendEmailCode([FromBody] SendEmailCodeDto sendEmailCodeDto)
+    {
+        return HandleResult(await _authService.SendEmailCodeAsync(sendEmailCodeDto));
+    }
+
+    [HttpPost("verify-email-code")]
+    public async Task<IActionResult> VerifyEmailCode([FromBody] VerifyEmailCodeDto verifyEmailCodeDto)
+    {
+        return HandleResult(await _authService.VerifyEmailCodeAsync(verifyEmailCodeDto));
+    }
+
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
     {

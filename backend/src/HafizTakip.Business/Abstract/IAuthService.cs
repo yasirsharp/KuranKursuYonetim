@@ -8,6 +8,8 @@ public interface IAuthService
 {
     Task<IResult> SendOtpAsync(SendOtpDto sendOtpDto);
     Task<IDataResult<TokenResponseDto>> VerifyOtpAsync(VerifyOtpDto verifyOtpDto);
+    Task<IResult> SendEmailCodeAsync(SendEmailCodeDto sendEmailCodeDto);
+    Task<IDataResult<TokenResponseDto>> VerifyEmailCodeAsync(VerifyEmailCodeDto verifyEmailCodeDto);
     Task<IDataResult<TokenResponseDto>> RefreshAsync(RefreshTokenRequestDto request);
     Task<IResult> LogoutAsync(RefreshTokenRequestDto request);
 

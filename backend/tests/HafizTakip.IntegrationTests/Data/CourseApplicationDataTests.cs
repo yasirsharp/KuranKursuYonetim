@@ -189,6 +189,8 @@ internal sealed class StubSessionAuthService : IAuthService
 
     public Task<IResult> SendOtpAsync(SendOtpDto sendOtpDto) => throw new NotSupportedException();
     public Task<IDataResult<TokenResponseDto>> VerifyOtpAsync(VerifyOtpDto verifyOtpDto) => throw new NotSupportedException();
+    public Task<IResult> SendEmailCodeAsync(SendEmailCodeDto sendEmailCodeDto) => throw new NotSupportedException();
+    public Task<IDataResult<TokenResponseDto>> VerifyEmailCodeAsync(VerifyEmailCodeDto verifyEmailCodeDto) => throw new NotSupportedException();
     public Task<IDataResult<TokenResponseDto>> RefreshAsync(RefreshTokenRequestDto request) => throw new NotSupportedException();
     public Task<IResult> LogoutAsync(RefreshTokenRequestDto request) => throw new NotSupportedException();
 }

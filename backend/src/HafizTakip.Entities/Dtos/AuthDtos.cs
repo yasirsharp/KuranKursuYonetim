@@ -19,6 +19,21 @@ public class VerifyOtpDto : IDto
     public Guid? TenantId { get; set; }
 }
 
+/// <summary>E-posta ile giriş: kayıtlı adrese tek kullanımlık kod gönderilir.</summary>
+public class SendEmailCodeDto : IDto
+{
+    public string Email { get; set; } = string.Empty;
+}
+
+public class VerifyEmailCodeDto : IDto
+{
+    public string Email { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+
+    /// <summary>Adres birden fazla kursta kayıtlıysa, kurs seçildikten sonra gönderilir.</summary>
+    public Guid? TenantId { get; set; }
+}
+
 public class RefreshTokenRequestDto : IDto
 {
     public string RefreshToken { get; set; } = string.Empty;

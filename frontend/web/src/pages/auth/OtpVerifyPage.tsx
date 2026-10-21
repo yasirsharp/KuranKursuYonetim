@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { toAuthUser, verifyOtp } from '../../api/auth';
+import { toAuthUser, verifyEmailCode, verifyOtp } from '../../api/auth';
 import { getErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Logger } from '../../services/logger';
@@ -24,7 +24,10 @@ export default function OtpVerifyPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { login } = useAuth();
-  const phoneNumber = (location.state as { phoneNumber?: string })?.phoneNumber;
+  const state = location.state as { phoneNumber?: string; email?: string } | null;
+  const phoneNumber = state?.phoneNumber;
+  const email = state?.email;
+  const identifier = phoneNumber ?? email;
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
@@ -35,11 +38,11 @@ export default function OtpVerifyPage() {
 
   // Telefon numarası yoksa login'e yönlendir
   useEffect(() => {
-    if (!phoneNumber) {
-      log.warn('mount', 'Telefon numarası yok — login sayfasına yönlendiriliyor');
+    if (!identifier) {
+      log.warn('mount', 'Telefon/e-posta yok — login sayfasına yönlendiriliyor');
       navigate(PATHS.login, { replace: true });
     }
-  }, [phoneNumber, navigate]);
+  }, [identifier, navigate]);
 
   const handleChange = (index: number, value: string) => {
     const digits = value.replace(/\D/g, '');
@@ -80,15 +83,17 @@ export default function OtpVerifyPage() {
   };
 
   const verify = async (tenantId?: string) => {
-    if (!phoneNumber) return;
+    if (!identifier) return;
     const code = otp.join('');
 
     setLoading(true);
     setError('');
-    log.info('verify', 'OTP doğrulanıyor', { phone: phoneNumber, tenantId });
+    log.info('verify', 'OTP doğrulanıyor', { tenantId });
 
     try {
-      const result = await verifyOtp({ phoneNumber, code, tenantId });
+      const result = phoneNumber
+        ? await verifyOtp({ phoneNumber, code, tenantId })
+        : await verifyEmailCode({ email: email!, code, tenantId });
 
       if (result.requiresTenantSelection) {
         // Kod doğru ama numara birden fazla kursta kayıtlı: kod tüketilmedi, kurs seçilince aynı kodla tekrar doğrulanır
@@ -121,7 +126,7 @@ export default function OtpVerifyPage() {
     await verify();
   };
 
-  if (!phoneNumber) return null;
+  if (!identifier) return null;
 
   if (tenantOptions) {
     return (
@@ -166,7 +171,7 @@ export default function OtpVerifyPage() {
       <form className="auth-form" onSubmit={handleSubmit}>
         <h2 className="auth-form-title">Doğrulama Kodu</h2>
         <p className="auth-form-hint">
-          <strong>{phoneNumber}</strong> numarasına gönderilen 6 haneli kodu girin
+          <strong>{identifier}</strong> {phoneNumber ? 'numarasına' : 'adresine'} gönderilen 6 haneli kodu girin
         </p>
 
         {error && <div className="auth-error">{error}</div>}

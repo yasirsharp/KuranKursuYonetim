@@ -6,6 +6,7 @@ using HafizTakip.Business.ValidationRules.FluentValidation;
 using HafizTakip.Core.Aspects.Autofac.Validation;
 using HafizTakip.Core.Entities.Platform;
 using HafizTakip.Core.Enums;
+using HafizTakip.Core.Utilities.Email;
 using HafizTakip.Core.Utilities.Helpers;
 using HafizTakip.Core.Utilities.Results;
 using HafizTakip.Core.Utilities.Security.Jwt;
@@ -19,7 +20,7 @@ using Microsoft.Extensions.Caching.Memory;
 namespace HafizTakip.Business.Concrete;
 
 /// <summary>
-/// Telefon + OTP ile giriş, refresh token rotasyonu ve çıkış.
+/// Telefon veya e-posta + tek kullanımlık kod ile giriş, refresh token rotasyonu ve çıkış.
 /// Güvenlik notları:
 /// - OTP kodu cache'te yalnızca SHA-256 özeti olarak tutulur; hatalı deneme sayısı sınırlıdır.
 /// - Numara kayıtlı olsun olmasın send-otp aynı yanıtı döner (numara keşfi engellenir).
@@ -29,6 +30,7 @@ namespace HafizTakip.Business.Concrete;
 public class AuthService : IAuthService
 {
     private const string GenericSendMessage = "Telefon numarası kayıtlıysa doğrulama kodu gönderildi.";
+    private const string GenericEmailSendMessage = "E-posta adresi kayıtlıysa doğrulama kodu gönderildi.";
     private const string InvalidCodeMessage = "Doğrulama kodu hatalı veya süresi dolmuş.";
     private const string InvalidSessionMessage = "Oturum geçersiz veya süresi dolmuş. Lütfen tekrar giriş yapın.";
 
@@ -37,6 +39,7 @@ public class AuthService : IAuthService
     private readonly IRefreshTokenDal _refreshTokenDal;
     private readonly ITokenHelper _tokenHelper;
     private readonly ISmsSender _smsSender;
+    private readonly IEmailSender _emailSender;
     private readonly OtpChallenge _otp;
     private readonly TokenOptions _tokenOptions;
     private readonly TimeProvider _timeProvider;
@@ -48,6 +51,7 @@ public class AuthService : IAuthService
         ITokenHelper tokenHelper,
         IMemoryCache cache,
         ISmsSender smsSender,
+        IEmailSender emailSender,
         OtpOptions otpOptions,
         TokenOptions tokenOptions,
         TimeProvider timeProvider)
@@ -57,6 +61,7 @@ public class AuthService : IAuthService
         _refreshTokenDal = refreshTokenDal;
         _tokenHelper = tokenHelper;
         _smsSender = smsSender;
+        _emailSender = emailSender;
         _otp = new OtpChallenge(cache, otpOptions, timeProvider);
         _tokenOptions = tokenOptions;
         _timeProvider = timeProvider;
@@ -111,16 +116,75 @@ public class AuthService : IAuthService
         }
 
         var candidates = await _userDal.GetLoginCandidatesByPhoneAsync(phone);
+        return await CompleteLoginAsync(candidates, verifyOtpDto.TenantId, () => _otp.Consume(OtpPurpose.Login, phone));
+    }
+
+    // ── E-posta ile giriş ───────────────────────────────────────────
+
+    [ValidationAspect(typeof(SendEmailCodeValidator))]
+    public async Task<IResult> SendEmailCodeAsync(SendEmailCodeDto sendEmailCodeDto)
+    {
+        var email = EmailHelper.Normalize(sendEmailCodeDto.Email);
+
+        // Hız sınırı adres kayıtlı olsun olmasın uygulanır; yanıt farkından adres keşfedilemez
+        var throttle = _otp.CheckAndRegisterSendAttempt(email);
+        if (throttle != null) return throttle;
+
+        var candidates = await _userDal.GetLoginCandidatesByEmailAsync(email);
         if (candidates.Count == 0)
         {
-            _otp.Consume(OtpPurpose.Login, phone);
+            return new SuccessResult(GenericEmailSendMessage);
+        }
+
+        var code = _otp.Issue(OtpPurpose.EmailLogin, email);
+
+        var sent = await _emailSender.SendAsync(email,
+            $"Hafız Takip giriş kodunuz: {code}",
+            $"Hafız Takip giriş kodunuz: {code}\n\nKod {_otp.ExpiryMinutes} dakika geçerlidir. Kimseyle paylaşmayın.\n" +
+            "Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.");
+
+        if (!sent)
+        {
+            _otp.Consume(OtpPurpose.EmailLogin, email);
+            return new ErrorResult("Doğrulama kodu şu anda gönderilemedi. Lütfen biraz sonra tekrar deneyin.");
+        }
+
+        return new SuccessResult(GenericEmailSendMessage);
+    }
+
+    [ValidationAspect(typeof(VerifyEmailCodeValidator))]
+    public async Task<IDataResult<TokenResponseDto>> VerifyEmailCodeAsync(VerifyEmailCodeDto verifyEmailCodeDto)
+    {
+        var email = EmailHelper.Normalize(verifyEmailCodeDto.Email);
+
+        switch (_otp.Verify(OtpPurpose.EmailLogin, email, verifyEmailCodeDto.Code))
+        {
+            case OtpVerification.TooManyAttempts:
+                return Unauthorized<TokenResponseDto>("Çok fazla hatalı deneme yapıldı. Lütfen yeni kod isteyin.");
+            case OtpVerification.InvalidOrExpired:
+                return Unauthorized<TokenResponseDto>(InvalidCodeMessage);
+        }
+
+        var candidates = await _userDal.GetLoginCandidatesByEmailAsync(email);
+        return await CompleteLoginAsync(candidates, verifyEmailCodeDto.TenantId, () => _otp.Consume(OtpPurpose.EmailLogin, email));
+    }
+
+    /// <summary>
+    /// Kod doğrulandıktan sonra ortak adım: kurs seçimi gerekiyorsa liste döner (kod tüketilmez),
+    /// aksi halde kod tüketilir ve oturum açılır.
+    /// </summary>
+    private async Task<IDataResult<TokenResponseDto>> CompleteLoginAsync(List<User> candidates, Guid? tenantId, Action consumeCode)
+    {
+        if (candidates.Count == 0)
+        {
+            consumeCode();
             return Unauthorized<TokenResponseDto>(InvalidCodeMessage);
         }
 
         User? user;
-        if (verifyOtpDto.TenantId is { } tenantId)
+        if (tenantId is { } selectedTenantId)
         {
-            user = candidates.FirstOrDefault(u => u.TenantId == tenantId);
+            user = candidates.FirstOrDefault(u => u.TenantId == selectedTenantId);
             if (user == null)
                 return Unauthorized<TokenResponseDto>("Bu kurumda kaydınız bulunamadı.");
         }
@@ -140,7 +204,7 @@ public class AuthService : IAuthService
             user = candidates[0];
         }
 
-        _otp.Consume(OtpPurpose.Login, phone);
+        consumeCode();
 
         var response = await CreateSessionAsync(user);
         return new SuccessDataResult<TokenResponseDto>(response, "Giriş başarılı.");

@@ -423,6 +423,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_calendar_events_holiday_key
 -- =============================================================
 
 CREATE INDEX IX_users_tenant_id ON users(tenant_id);
+-- E-posta ile giriş (küçük harfle saklanır; bir kursta tekil, girişte tüm kurslarda aranır) — migrations/009
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_tenant_email
+    ON users(tenant_id, lower(email)) WHERE email IS NOT NULL AND is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_users_email_lower
+    ON users(lower(email)) WHERE email IS NOT NULL AND is_deleted = false;
 CREATE INDEX IX_groups_tenant_id ON groups(tenant_id);
 CREATE INDEX IX_students_tenant_id ON students(tenant_id);
 CREATE INDEX IX_students_tenant_id_group_id ON students(tenant_id, group_id);
@@ -569,5 +574,6 @@ INSERT INTO schema_migrations (version) VALUES
     ('005_lesson_surah_backfill'),
     ('006_tenant_settings'),
     ('007_course_applications'),
-    ('008_academic_calendar')
+    ('008_academic_calendar'),
+    ('009_user_email_login')
 ON CONFLICT (version) DO NOTHING;

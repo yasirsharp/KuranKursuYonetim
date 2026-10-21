@@ -11,6 +11,9 @@ public interface IUserDal : IEntityRepository<User>
     /// </summary>
     Task<List<User>> GetLoginCandidatesByPhoneAsync(string normalizedPhone);
 
+    /// <summary>E-posta ile giriş için: <see cref="GetLoginCandidatesByPhoneAsync"/> ile aynı kurallar, adres büyük/küçük harf duyarsız.</summary>
+    Task<List<User>> GetLoginCandidatesByEmailAsync(string normalizedEmail);
+
     /// <summary>Refresh akışı için: kullanıcıyı tenant filtresi olmadan getirir (silinmişler hariç).</summary>
     Task<User?> GetByIdAcrossTenantsAsync(Guid userId);
 

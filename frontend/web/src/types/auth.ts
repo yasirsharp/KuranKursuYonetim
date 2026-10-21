@@ -2,6 +2,13 @@ export interface ISendOtpRequest {
   phoneNumber: string;
 }
 
+export interface IVerifyEmailCodeRequest {
+  email: string;
+  code: string;
+  /** Adres birden fazla kursta kayıtlıysa seçilen kurs */
+  tenantId?: string;
+}
+
 export interface IVerifyOtpRequest {
   phoneNumber: string;
   code: string;

@@ -24,6 +24,18 @@ public class EfUserDal : EfEntityRepositoryBase<User, HafizTakipDbContext>, IUse
             .ToListAsync();
     }
 
+    public async Task<List<User>> GetLoginCandidatesByEmailAsync(string normalizedEmail)
+    {
+        return await Context.Users
+            .IgnoreQueryFilters()
+            // lower(email) üzerindeki indeksi kullanır (migrations/009)
+            .Where(u => u.Email != null && u.Email.ToLower() == normalizedEmail && !u.IsDeleted)
+            .Where(u => Context.Tenants.Any(t => t.Id == u.TenantId && t.IsActive && !t.IsDeleted
+                                                 && TenantStatus.SignInAllowed.Contains(t.Status)))
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
     public async Task<User?> GetByIdAcrossTenantsAsync(Guid userId)
     {
         return await Context.Users

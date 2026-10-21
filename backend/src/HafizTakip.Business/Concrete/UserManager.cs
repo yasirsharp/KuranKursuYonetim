@@ -67,13 +67,19 @@ public class UserManager : IUserService
             return new ErrorResult("Bu telefon numarasına ait bir kullanıcı zaten mevcut.", ResultErrorType.Conflict);
         }
 
+        var email = EmailHelper.NormalizeOrNull(createUserDto.Email);
+        if (email != null && await _userDal.AnyAsync(u => u.Email == email))
+        {
+            return new ErrorResult("Bu e-posta adresine ait bir kullanıcı zaten mevcut.", ResultErrorType.Conflict);
+        }
+
         var user = new User
         {
             TenantId = _tenantContext.TenantId, // Otomatik olarak mevcut kiracıya eklenir
             FirstName = createUserDto.FirstName,
             LastName = createUserDto.LastName,
             PhoneNumber = phone,
-            Email = createUserDto.Email,
+            Email = email,
             Role = createUserDto.Role
         };
 
@@ -108,10 +114,14 @@ public class UserManager : IUserService
                 return new ErrorResult("Bu telefon numarası başka bir kullanıcıya ait.", ResultErrorType.Conflict);
         }
 
+        var email = EmailHelper.NormalizeOrNull(updateUserDto.Email);
+        if (email != null && email != user.Email && await _userDal.AnyAsync(u => u.Email == email && u.Id != user.Id))
+            return new ErrorResult("Bu e-posta adresi başka bir kullanıcıya ait.", ResultErrorType.Conflict);
+
         user.FirstName = updateUserDto.FirstName;
         user.LastName = updateUserDto.LastName;
         user.PhoneNumber = phone;
-        user.Email = updateUserDto.Email;
+        user.Email = email;
         user.Role = updateUserDto.Role;
         user.UpdatedAt = DateTime.UtcNow;
 

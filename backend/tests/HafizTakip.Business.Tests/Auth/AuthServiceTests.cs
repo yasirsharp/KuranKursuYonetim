@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using HafizTakip.Business.Concrete;
 using HafizTakip.Core.Entities.Platform;
+using HafizTakip.Core.Utilities.Email;
 using HafizTakip.Core.Utilities.Results;
 using HafizTakip.Core.Utilities.Security.Jwt;
 using HafizTakip.Core.Utilities.Security.Otp;
@@ -22,6 +23,8 @@ public class AuthServiceTests
     private readonly Mock<IRefreshTokenDal> _refreshTokenDal = new();
     private readonly Mock<ITokenHelper> _tokenHelper = new();
     private readonly Mock<ISmsSender> _smsSender = new();
+    private readonly Mock<IEmailSender> _emailSender = new();
+    private readonly List<string> _sentEmails = new();
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
     private readonly OtpOptions _otpOptions = new();
     private readonly List<string> _sentMessages = new();
@@ -40,11 +43,17 @@ public class AuthServiceTests
             .Returns(new AccessToken { Token = "access-token", Expiration = DateTime.UtcNow.AddHours(1) });
 
         _userDal.Setup(d => d.GetLoginCandidatesByPhoneAsync(It.IsAny<string>())).ReturnsAsync(new List<User>());
+
+        _emailSender
+            .Setup(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string, CancellationToken>((_, _, body, _) => _sentEmails.Add(body))
+            .ReturnsAsync(true);
+        _userDal.Setup(d => d.GetLoginCandidatesByEmailAsync(It.IsAny<string>())).ReturnsAsync(new List<User>());
     }
 
     private AuthService CreateService() => new(
         _userDal.Object, _tenantDal.Object, _refreshTokenDal.Object, _tokenHelper.Object,
-        _cache, _smsSender.Object, _otpOptions, new TokenOptions { RefreshTokenExpirationDays = 30 }, TimeProvider.System);
+        _cache, _smsSender.Object, _emailSender.Object, _otpOptions, new TokenOptions { RefreshTokenExpirationDays = 30 }, TimeProvider.System);
 
     private User RegisterUser(Guid tenantId, string role = "head_teacher")
     {
@@ -249,5 +258,102 @@ public class AuthServiceTests
         result.Success.Should().Be(allowed);
         if (allowed) result.Data.TenantStatus.Should().Be(status);
         else _refreshTokenDal.Verify(d => d.RevokeAllForUserAsync(user.Id, It.IsAny<DateTime>()), Times.Once);
+    }
+
+    // ── E-posta ile giriş ──
+
+    private const string Email = "ahmet.hoca@kurs.com";
+
+    private User RegisterEmailUser(params Guid[] tenantIds)
+    {
+        var users = tenantIds.Select(t => new User { Id = Guid.NewGuid(), TenantId = t, Email = Email, Role = "head_teacher", FirstName = "Ahmet" }).ToList();
+        _userDal.Setup(d => d.GetLoginCandidatesByEmailAsync(Email)).ReturnsAsync(() => users.ToList());
+        var tenants = tenantIds.Select(t => new Tenant { Id = t, Name = $"Kurs {t}", Status = "active", IsActive = true }).ToList();
+        _tenantDal.Setup(d => d.GetListAsync(It.IsAny<Expression<Func<Tenant, bool>>>())).ReturnsAsync(tenants);
+        _tenantDal.Setup(d => d.GetAsync(It.IsAny<Expression<Func<Tenant, bool>>>()))
+            .ReturnsAsync((Expression<Func<Tenant, bool>> filter) => tenants.FirstOrDefault(filter.Compile()));
+        return users[0];
+    }
+
+    private string LastEmailCode() => Regex.Match(_sentEmails.Last(), @"\d{6}").Value;
+
+    [Fact]
+    public async Task SendEmailCode_UnknownAddress_ShouldReturnGenericSuccessWithoutSending()
+    {
+        var result = await CreateService().SendEmailCodeAsync(new SendEmailCodeDto { Email = "yok@kurs.com" });
+
+        result.Success.Should().BeTrue();
+        _emailSender.Verify(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EmailLogin_AddressIsCaseInsensitive_AndCodeOpensSession()
+    {
+        RegisterEmailUser(_tenantA);
+        var service = CreateService();
+
+        (await service.SendEmailCodeAsync(new SendEmailCodeDto { Email = "  Ahmet.Hoca@KURS.com " })).Success.Should().BeTrue();
+        _emailSender.Verify(s => s.SendAsync(Email, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        var result = await service.VerifyEmailCodeAsync(new VerifyEmailCodeDto { Email = "AHMET.HOCA@kurs.com", Code = LastEmailCode() });
+
+        result.Success.Should().BeTrue(result.Message);
+        result.Data!.Token.Should().Be("access-token");
+        result.Data.TenantId.Should().Be(_tenantA);
+    }
+
+    [Fact]
+    public async Task EmailLogin_CodeIsSingleUse_AndPhoneCodeIsNotAccepted()
+    {
+        RegisterEmailUser(_tenantA);
+        var service = CreateService();
+        await service.SendEmailCodeAsync(new SendEmailCodeDto { Email = Email });
+        var code = LastEmailCode();
+
+        (await service.VerifyEmailCodeAsync(new VerifyEmailCodeDto { Email = Email, Code = code })).Success.Should().BeTrue();
+        var reuse = await service.VerifyEmailCodeAsync(new VerifyEmailCodeDto { Email = Email, Code = code });
+
+        reuse.Success.Should().BeFalse();
+        reuse.ErrorType.Should().Be(ResultErrorType.Unauthorized);
+    }
+
+    [Fact]
+    public async Task EmailLogin_AddressInTwoCourses_ShouldAskForCourseThenLogIn()
+    {
+        RegisterEmailUser(_tenantA, _tenantB);
+        var service = CreateService();
+        await service.SendEmailCodeAsync(new SendEmailCodeDto { Email = Email });
+        var code = LastEmailCode();
+
+        var first = await service.VerifyEmailCodeAsync(new VerifyEmailCodeDto { Email = Email, Code = code });
+        first.Data!.RequiresTenantSelection.Should().BeTrue();
+
+        var second = await service.VerifyEmailCodeAsync(new VerifyEmailCodeDto { Email = Email, Code = code, TenantId = _tenantB });
+        second.Success.Should().BeTrue(second.Message);
+        second.Data!.TenantId.Should().Be(_tenantB);
+    }
+
+    [Fact]
+    public async Task SendEmailCode_WhenSendingFails_ShouldReturnError()
+    {
+        RegisterEmailUser(_tenantA);
+        _emailSender
+            .Setup(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await CreateService().SendEmailCodeAsync(new SendEmailCodeDto { Email = Email });
+
+        result.Success.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("hoca")]
+    [InlineData("hoca@kurs")]
+    [InlineData("ad soyad@kurs.com")]
+    [InlineData("")]
+    public void EmailCodeValidator_InvalidAddress_ShouldFail(string email)
+    {
+        new HafizTakip.Business.ValidationRules.FluentValidation.SendEmailCodeValidator()
+            .Validate(new SendEmailCodeDto { Email = email }).IsValid.Should().BeFalse();
     }
 }

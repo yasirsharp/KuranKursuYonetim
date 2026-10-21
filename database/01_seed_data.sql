@@ -26,11 +26,11 @@ INSERT INTO invoices (id, tenant_id, subscription_id, invoice_no, amount, due_da
 VALUES ('44444444-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', '33333333-1111-1111-1111-111111111111', 'INV-2026-001', 5000.00, '2026-01-15', '2026-01-10', 'paid');
 
 -- 4. KULLANICILAR (Kurs müdürü, öğretmenler ve veliler)
--- Kurs Müdürü (tenant_admin) — giriş: 0500 111 22 30
+-- Kurs Müdürü (tenant_admin) — giriş: 0500 111 22 30 veya mudur@merkezkurs.com
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
 VALUES ('55555555-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'Osman', 'Aydın', '5001112230', 'mudur@merkezkurs.com', 'tenant_admin', NULL);
 
--- Hoca 1 (Başöğretmen)
+-- Hoca 1 (Başöğretmen) — giriş: 0500 111 22 33 veya ahmet.hoca@merkezkurs.com
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
 VALUES ('55555555-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'Ahmet', 'Yılmaz', '5001112233', 'ahmet.hoca@merkezkurs.com', 'head_teacher', 'hashed_pw');
 
@@ -47,7 +47,7 @@ INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, ro
 VALUES ('55555555-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111', 'Ayşe', 'Çelik', '5001112236', 'ayse.veli@mail.com', 'parent', 'hashed_pw');
 
 -- 4b. ONAY BEKLEYEN KURS BAŞVURUSU (platform onay ekranını denemek için)
--- Başvuran kurs müdürü giriş yapabilir ama yalnızca "kursunuz onay bekliyor" durumunu görür — giriş: 0500 111 22 40
+-- Başvuran kurs müdürü giriş yapabilir ama yalnızca "kursunuz onay bekliyor" durumunu görür — giriş: 0500 111 22 40 veya kemal@yesilvadi.com
 INSERT INTO tenants (id, name, slug, status, contact_email, contact_phone, is_active, city, district, address, submitted_at)
 VALUES ('11111111-2222-2222-2222-222222222222', 'Yeşilvadi Kur''an Kursu', 'yesilvadi-kuran-kursu', 'pending', NULL, '5001112240', true,
         'Konya', 'Selçuklu', 'Yeşilvadi Mah. Cami Sok. No: 3', now() - INTERVAL '2 hours');
@@ -55,7 +55,7 @@ VALUES ('11111111-2222-2222-2222-222222222222', 'Yeşilvadi Kur''an Kursu', 'yes
 INSERT INTO tenant_settings (tenant_id) VALUES ('11111111-2222-2222-2222-222222222222');
 
 INSERT INTO users (id, tenant_id, first_name, last_name, phone_number, email, role, password_hash)
-VALUES ('55555555-9999-9999-9999-999999999999', '11111111-2222-2222-2222-222222222222', 'Kemal', 'Arslan', '5001112240', NULL, 'tenant_admin', NULL);
+VALUES ('55555555-9999-9999-9999-999999999999', '11111111-2222-2222-2222-222222222222', 'Kemal', 'Arslan', '5001112240', 'kemal@yesilvadi.com', 'tenant_admin', NULL);
 
 -- 5. GRUPLAR (Sınıflar)
 INSERT INTO groups (id, tenant_id, teacher_id, name, description)

@@ -10,7 +10,8 @@ namespace HafizTakip.Business.Security;
 public enum OtpPurpose
 {
     Login,
-    CourseApplication
+    CourseApplication,
+    EmailLogin
 }
 
 public enum OtpVerification
@@ -60,7 +61,7 @@ public sealed class OtpChallenge
 
         if (counter.Count >= _options.MaxSendsPerHour)
         {
-            return new ErrorResult("Bu numara için çok fazla kod istendi. Lütfen daha sonra tekrar deneyin.", ResultErrorType.TooManyRequests);
+            return new ErrorResult("Çok fazla kod istendi. Lütfen daha sonra tekrar deneyin.", ResultErrorType.TooManyRequests);
         }
 
         counter.Count++;

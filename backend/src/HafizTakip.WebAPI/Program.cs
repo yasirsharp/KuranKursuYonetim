@@ -8,6 +8,7 @@ using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Security.Encryption;
 using HafizTakip.Core.Utilities.Security.Jwt;
 using HafizTakip.Core.Utilities.Security.Otp;
+using HafizTakip.Core.Utilities.Email;
 using HafizTakip.Core.Utilities.Sms;
 using HafizTakip.DataAccess.Concrete.EntityFramework;
 using HafizTakip.WebAPI.Middlewares;
@@ -44,6 +45,10 @@ if (!isTestEnvironment && !string.IsNullOrEmpty(otpOptions.FixedCode))
 var smsSettings = builder.Configuration.GetSection("Sms").Get<SmsSettings>() ?? new SmsSettings();
 if (!isTestEnvironment && smsSettings.Provider != SmsSettings.NetGsmProvider)
     throw new InvalidOperationException("Canlı ortamda Sms:Provider 'netgsm' olmalıdır.");
+
+var emailSettings = builder.Configuration.GetSection("Email").Get<EmailSettings>() ?? new EmailSettings();
+if (!isTestEnvironment && emailSettings.Provider != EmailSettings.SmtpProvider)
+    throw new InvalidOperationException("Canlı ortamda Email:Provider 'smtp' olmalıdır.");
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 
@@ -130,6 +135,11 @@ if (smsSettings.Provider == SmsSettings.NetGsmProvider)
     builder.Services.AddHttpClient<ISmsSender, NetGsmSmsSender>(client => client.Timeout = TimeSpan.FromSeconds(15));
 else
     builder.Services.AddSingleton<ISmsSender, ConsoleSmsSender>();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+if (emailSettings.Provider == EmailSettings.SmtpProvider)
+    builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+else
+    builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();
 
 builder.Services.AddHafizTakipRateLimiting(builder.Configuration);
 

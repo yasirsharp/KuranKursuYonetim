@@ -124,6 +124,8 @@ public class CourseApplicationManager : ICourseApplicationService
                 FirstName = dto.AdminFirstName.Trim(),
                 LastName = dto.AdminLastName.Trim(),
                 PhoneNumber = phone,
+                // Kurs iletişim e-postası yöneticinin de giriş adresi olur (e-posta ile giriş)
+                Email = EmailHelper.NormalizeOrNull(dto.ContactEmail),
                 Role = UserRole.TenantAdmin
             };
 

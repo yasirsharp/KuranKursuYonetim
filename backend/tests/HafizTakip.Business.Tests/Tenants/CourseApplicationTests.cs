@@ -154,7 +154,7 @@ public class CourseApplicationTests
         _userDal.Setup(d => d.GetLoginCandidatesByPhoneAsync(Phone))
             .ReturnsAsync(new List<User> { new() { Id = Guid.NewGuid(), TenantId = Guid.NewGuid(), PhoneNumber = Phone } });
         var auth = new AuthService(_userDal.Object, _tenantDal.Object, Mock.Of<IRefreshTokenDal>(), Mock.Of<HafizTakip.Core.Utilities.Security.Jwt.ITokenHelper>(),
-            _cache, _smsSender.Object, new OtpOptions { ResendCooldownSeconds = 0 }, new HafizTakip.Core.Utilities.Security.Jwt.TokenOptions(), TimeProvider.System);
+            _cache, _smsSender.Object, Mock.Of<HafizTakip.Core.Utilities.Email.IEmailSender>(), new OtpOptions { ResendCooldownSeconds = 0 }, new HafizTakip.Core.Utilities.Security.Jwt.TokenOptions(), TimeProvider.System);
         await auth.SendOtpAsync(new SendOtpDto { PhoneNumber = Phone });
         var loginCode = Regex.Match(_sms.Last().Message, @"\d{6}").Value;
 

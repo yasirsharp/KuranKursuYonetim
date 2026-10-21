@@ -2,6 +2,7 @@ import apiClient from './client';
 import type {
   ISendOtpRequest,
   IVerifyOtpRequest,
+  IVerifyEmailCodeRequest,
   ITokenResponse,
   IPlatformTokenResponse,
   IAuthUser,
@@ -18,6 +19,15 @@ export async function verifyOtp(data: IVerifyOtpRequest): Promise<ITokenResponse
     '/api/auth/verify-otp',
     data
   );
+  return response.data.data;
+}
+
+export async function sendEmailCode(email: string): Promise<void> {
+  await apiClient.post('/api/auth/send-email-code', { email });
+}
+
+export async function verifyEmailCode(data: IVerifyEmailCodeRequest): Promise<ITokenResponse> {
+  const response = await apiClient.post<IApiResponse<ITokenResponse>>('/api/auth/verify-email-code', data);
   return response.data.data;
 }
 

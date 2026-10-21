@@ -84,6 +84,7 @@ $settings = [ordered]@{
 if ($Ortam -eq 'Staging') {
     $settings.Otp = [ordered]@{ FixedCode = '123456'; ResendCooldownSeconds = 10 }
     $settings.Sms = [ordered]@{ Provider = 'console' }
+    $settings.Email = [ordered]@{ Provider = 'console' }
 }
 $settingsJson = $settings | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText((Join-Path $app "appsettings.$Ortam.json"), $settingsJson, (New-Object Text.UTF8Encoding $false))
