@@ -3,6 +3,10 @@
 > **Flutter · Dart · Riverpod · Dio**
 > Bu dosya mobil uygulama geliştirme kurallarını tanımlar. Tüm ekip üyeleri bu kuralları bilmelidir.
 
+> **Ekim 2026 notu (ilk sürüm):** Kod Riverpod 3 ile yazıldı: `StateNotifier` yerine `Notifier`/`FutureProvider` kullanılır.
+> Kod üretimi (build_runner, json_serializable, freezed) şimdilik kullanılmıyor; modeller elle `fromJson` yazılır.
+> Giriş e-posta + kod iledir (`/api/auth/send-email-code`, `/api/auth/verify-email-code`). Offline kuyruk (Bölüm 7) sonraki sürümde.
+
 ---
 
 ## 1. Proje Yapısı
