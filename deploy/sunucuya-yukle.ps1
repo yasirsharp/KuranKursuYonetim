@@ -1,18 +1,22 @@
 ﻿<#
 .SYNOPSIS
-  Hafız Takip'i Plesk (Windows/IIS) alt alan adına FTP ile yükler.
+  Hafız Takip'i Plesk (Windows/IIS) alt alan adlarına FTP ile yükler: API ve web ayrı alt alan adlarındadır.
 
 .DESCRIPTION
   Kök dizindeki .env dosyasından okunur (depoya girmez):
     FTP_HOST, FTP_USER, FTP_PASS   -> FTP bağlantısı (FTPS)
-    HAFIZ_FTP_REMOTE_DIR           -> alt alan adının klasörü, ör. /httpdocs/hafiz
-                                      (/httpdocs kökü ana siteye aittir; oraya yükleme reddedilir)
     HAFIZ_DB_CONNECTION            -> PostgreSQL bağlantı cümlesi
     HAFIZ_JWT_KEY                  -> oturum imzalama anahtarı; yoksa üretilip .env'e eklenir
                                       (her yüklemede aynı kalmalı, yoksa açık oturumlar düşer)
+  Test ortamında (Staging) varsayılanı olan, gerekirse .env ile değiştirilebilen ayarlar:
+    HAFIZ_FTP_API_DIR  = /hafiztakip.api.yasirsharp.com.tr   HAFIZ_API_URL = https://hafiztakip.api.yasirsharp.com.tr
+    HAFIZ_FTP_WEB_DIR  = /hafiztakip.yasirsharp.com.tr       HAFIZ_WEB_URL = https://hafiztakip.yasirsharp.com.tr
+  Güvenlik: yalnızca adı "hafiz" ile başlayan klasörlere (FTP ana dizininde veya /httpdocs altında) yüklenir;
+  ana site ve diğer alt alan adları korunur.
 
-  Akış: paket hazırlanır (deploy\paket-olustur.ps1) -> app_offline.htm yüklenir (IIS uygulamayı durdurur,
-  kilitli DLL'ler serbest kalır) -> dosyalar yüklenir -> app_offline.htm silinir (uygulama yeniden başlar).
+  Akış: paket hazırlanır (deploy\paket-olustur.ps1) -> API: app_offline.htm yüklenir (IIS uygulamayı durdurur,
+  kilitli DLL'ler serbest kalır), dosyalar yüklenir, app_offline.htm silinir -> web: önce dosyalar,
+  en son index.html ve web.config (yarım sürüm görünmesin).
 
 .EXAMPLE
   .\deploy\sunucuya-yukle.ps1               # test ortamı (Staging), sabit doğrulama kodu
@@ -30,14 +34,36 @@ $root = Split-Path $PSScriptRoot -Parent
 $envFile = Join-Path $root '.env'
 $cfg = Read-DotEnv $envFile
 
-foreach ($key in 'FTP_HOST', 'FTP_USER', 'FTP_PASS', 'HAFIZ_FTP_REMOTE_DIR', 'HAFIZ_DB_CONNECTION') {
+# Test ortamının alt alan adları (canlı ortamda .env'de açıkça verilmelidir)
+if ($Ortam -eq 'Staging') {
+    $defaults = @{
+        HAFIZ_FTP_API_DIR = '/hafiztakip.api.yasirsharp.com.tr'; HAFIZ_API_URL = 'https://hafiztakip.api.yasirsharp.com.tr'
+        HAFIZ_FTP_WEB_DIR = '/hafiztakip.yasirsharp.com.tr';     HAFIZ_WEB_URL = 'https://hafiztakip.yasirsharp.com.tr'
+    }
+    foreach ($key in $defaults.Keys) { if ([string]::IsNullOrWhiteSpace($cfg[$key])) { $cfg[$key] = $defaults[$key] } }
+}
+if (-not [string]::IsNullOrWhiteSpace($cfg['HAFIZ_FTP_REMOTE_DIR'])) {
+    Write-Host "Not: HAFIZ_FTP_REMOTE_DIR artık kullanılmıyor (API ve web ayrı klasörlere yüklenir); .env'den silebilirsiniz." -ForegroundColor Yellow
+}
+
+foreach ($key in 'FTP_HOST', 'FTP_USER', 'FTP_PASS', 'HAFIZ_DB_CONNECTION', 'HAFIZ_FTP_API_DIR', 'HAFIZ_FTP_WEB_DIR', 'HAFIZ_API_URL', 'HAFIZ_WEB_URL') {
     if ([string]::IsNullOrWhiteSpace($cfg[$key])) { throw "$key eksik (.env dosyasında veya ortam değişkeni olarak verin)." }
 }
 
-# Hedef yalnızca /httpdocs altındaki bir alt klasör olabilir (ana siteyi ezmemek için)
-$remoteDir = '/' + $cfg['HAFIZ_FTP_REMOTE_DIR'].Trim().Trim('/')
-if ($remoteDir -notmatch '^/httpdocs/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$') {
-    throw "HAFIZ_FTP_REMOTE_DIR '/httpdocs/<alt-klasör>' biçiminde olmalı (şu an: $remoteDir). Ana site köküne yükleme yapılmaz."
+# Hedef yalnızca adı "hafiz" ile başlayan bir klasör olabilir: FTP ana dizininde (Plesk alt alan adı klasörü)
+# veya /httpdocs altında. Ana site (/httpdocs kökü) ve diğer alt alan adları korunur.
+function Get-SafeRemoteDir([string]$Key) {
+    $dir = '/' + $cfg[$Key].Trim().Trim('/')
+    if ($dir -notmatch '^/(httpdocs/)?hafiz[A-Za-z0-9._-]*$') {
+        throw "$Key 'hafiz' ile başlayan bir alt alan adı klasörü olmalı (ör. /hafiztakip.yasirsharp.com.tr); şu an: $dir"
+    }
+    return $dir
+}
+$apiDir = Get-SafeRemoteDir 'HAFIZ_FTP_API_DIR'
+$webDir = Get-SafeRemoteDir 'HAFIZ_FTP_WEB_DIR'
+if ($apiDir -eq $webDir) { throw 'API ve web aynı klasöre yüklenemez (HAFIZ_FTP_API_DIR ile HAFIZ_FTP_WEB_DIR farklı olmalı).' }
+foreach ($key in 'HAFIZ_API_URL', 'HAFIZ_WEB_URL') {
+    if ($cfg[$key] -notmatch '^https://[A-Za-z0-9.-]+/?$') { throw "$key 'https://alan.adi' biçiminde olmalı; şu an: $($cfg[$key])" }
 }
 
 # Oturum anahtarı sabit kalsın: yoksa üret ve .env'e ekle. .env yoksa (bulut/CI) üretmek açık oturumları
@@ -59,12 +85,15 @@ if ([string]::IsNullOrWhiteSpace($cfg['HAFIZ_JWT_KEY'])) {
 $dbName = if ($cfg['HAFIZ_DB_NAME']) { $cfg['HAFIZ_DB_NAME'] } else { 'hafiztakip' }
 $connectionString = ConvertTo-NpgsqlConnectionString (Get-PgConnectionInfo $cfg['HAFIZ_DB_CONNECTION'] -Database $dbName)
 & (Join-Path $PSScriptRoot 'paket-olustur.ps1') -Ortam $Ortam -Runtime '' `
-    -ConnectionString $connectionString -JwtKey $cfg['HAFIZ_JWT_KEY']
+    -ConnectionString $connectionString -JwtKey $cfg['HAFIZ_JWT_KEY'] `
+    -ApiUrl $cfg['HAFIZ_API_URL'] -WebOrigin $cfg['HAFIZ_WEB_URL']
 $appDir = Join-Path $PSScriptRoot 'out/app'
-if (-not (Test-Path (Join-Path $appDir 'web.config'))) { throw 'Paket hazırlanamadı (web.config yok).' }
+$webPackageDir = Join-Path $PSScriptRoot 'out/web'
+if (-not (Test-Path (Join-Path $appDir 'web.config'))) { throw 'Paket hazırlanamadı (API web.config yok).' }
+if (-not (Test-Path (Join-Path $webPackageDir 'index.html'))) { throw 'Paket hazırlanamadı (web index.html yok).' }
 
 if ($SkipUpload) {
-    Write-Host "Yükleme atlandı (-SkipUpload). Paket: $appDir" -ForegroundColor Magenta
+    Write-Host "Yükleme atlandı (-SkipUpload). Paket: $(Join-Path $PSScriptRoot 'out')" -ForegroundColor Magenta
     return
 }
 
@@ -101,36 +130,46 @@ function Remove-FtpFile([string]$remotePath) {
     catch { }
 }
 
-# 3) Bakım modu -> dosyalar -> bakım modundan çık
-New-FtpDirectory $remoteDir
-$offline = Join-Path ([IO.Path]::GetTempPath()) 'app_offline.htm'
-[IO.File]::WriteAllText($offline, '<!doctype html><meta charset="utf-8"><title>Güncelleniyor</title><p style="font-family:sans-serif;text-align:center;margin-top:20vh">Hafız Takip güncelleniyor, lütfen birkaç dakika sonra tekrar deneyin.</p>', (New-Object Text.UTF8Encoding $false))
-Send-FtpFile $offline "$remoteDir/app_offline.htm"
-Write-Host "Bakım modu açıldı; uygulamanın durması bekleniyor..." -ForegroundColor Yellow
-Start-Sleep -Seconds 5
+# 3) Klasör yükleme: önce alt klasörler, sonra dosyalar; -LastFiles en sona kalır
+function Publish-FtpFolder([string]$localDir, [string]$remoteDir, [string[]]$LastFiles = @()) {
+    New-FtpDirectory $remoteDir
+    $dirs = Get-ChildItem $localDir -Recurse -Directory | Sort-Object { $_.FullName.Length }
+    foreach ($d in $dirs) {
+        New-FtpDirectory ($remoteDir + '/' + $d.FullName.Substring($localDir.Length + 1).Replace('\', '/'))
+    }
 
-$files = Get-ChildItem $appDir -Recurse -File
-$dirs = Get-ChildItem $appDir -Recurse -Directory | Sort-Object { $_.FullName.Length }
-foreach ($d in $dirs) {
-    New-FtpDirectory ($remoteDir + '/' + $d.FullName.Substring($appDir.Length + 1).Replace('\', '/'))
-}
-
-$i = 0
-foreach ($f in $files) {
-    $i++
-    $relative = $f.FullName.Substring($appDir.Length + 1).Replace('\', '/')
-    Write-Progress -Activity 'Yükleniyor' -Status $relative -PercentComplete ([int](100 * $i / $files.Count))
-    $attempt = 0
-    while ($true) {
-        try { Send-FtpFile $f.FullName "$remoteDir/$relative"; break }
-        catch {
-            $attempt++
-            if ($attempt -ge 3) { throw "Yüklenemedi: $relative — $($_.Exception.Message)" }
-            Start-Sleep -Seconds 3
+    $files = @(Get-ChildItem $localDir -Recurse -File | Sort-Object { $LastFiles -contains $_.Name })
+    $i = 0
+    foreach ($f in $files) {
+        $i++
+        $relative = $f.FullName.Substring($localDir.Length + 1).Replace('\', '/')
+        Write-Progress -Activity "Yükleniyor ($remoteDir)" -Status $relative -PercentComplete ([int](100 * $i / $files.Count))
+        $attempt = 0
+        while ($true) {
+            try { Send-FtpFile $f.FullName "$remoteDir/$relative"; break }
+            catch {
+                $attempt++
+                if ($attempt -ge 3) { throw "Yüklenemedi: $relative — $($_.Exception.Message)" }
+                Start-Sleep -Seconds 3
+            }
         }
     }
+    Write-Progress -Activity "Yükleniyor ($remoteDir)" -Completed
+    return $files.Count
 }
-Write-Progress -Activity 'Yükleniyor' -Completed
 
-Remove-FtpFile "$remoteDir/app_offline.htm"
-Write-Host "Yükleme tamamlandı: $($files.Count) dosya -> $remoteDir" -ForegroundColor Green
+# 4) API: bakım modu -> dosyalar -> bakım modundan çık
+New-FtpDirectory $apiDir
+$offline = Join-Path ([IO.Path]::GetTempPath()) 'app_offline.htm'
+[IO.File]::WriteAllText($offline, '<!doctype html><meta charset="utf-8"><title>Güncelleniyor</title><p style="font-family:sans-serif;text-align:center;margin-top:20vh">Hafız Takip güncelleniyor, lütfen birkaç dakika sonra tekrar deneyin.</p>', (New-Object Text.UTF8Encoding $false))
+Send-FtpFile $offline "$apiDir/app_offline.htm"
+Write-Host "API bakım modunda; uygulamanın durması bekleniyor..." -ForegroundColor Yellow
+Start-Sleep -Seconds 5
+
+$apiCount = Publish-FtpFolder $appDir $apiDir
+Remove-FtpFile "$apiDir/app_offline.htm"
+Write-Host "API yüklendi: $apiCount dosya -> $apiDir ($($cfg['HAFIZ_API_URL']))" -ForegroundColor Green
+
+# 5) Web: index.html ve web.config en son (eski sayfa, yeni dosyalar yerine oturana kadar çalışmaya devam eder)
+$webCount = Publish-FtpFolder $webPackageDir $webDir -LastFiles @('index.html', 'web.config')
+Write-Host "Web yüklendi: $webCount dosya -> $webDir ($($cfg['HAFIZ_WEB_URL']))" -ForegroundColor Green

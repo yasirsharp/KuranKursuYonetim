@@ -1,10 +1,16 @@
 ﻿<#
 .SYNOPSIS
-  Sunucuya yüklenecek yayın paketini hazırlar: API + React uygulaması (tek alan adı) + veritabanı betikleri.
+  Sunucuya yüklenecek yayın paketini hazırlar: API + React uygulaması + veritabanı betikleri.
 
 .DESCRIPTION
+  İki düzen desteklenir:
+    -ApiUrl ve -WebOrigin verilirse (ayrı alan adları): web ayrı bir sitedir ve API'ye ApiUrl'den bağlanır;
+       API yalnızca WebOrigin'den gelen tarayıcı isteklerini kabul eder (CORS).
+    Verilmezse (tek alan adı): React uygulaması API'nin wwwroot klasöründen sunulur.
+
   Çıktı: deploy\out\
-    app\        -> sunucudaki uygulama klasörüne (alt alan adının kök dizini) yüklenir
+    app\        -> API'nin alt alan adının kök dizinine yüklenir (tek alan adında web de içindedir)
+    web\        -> (ayrı alan adlarında) web alt alan adının kök dizinine yüklenir
     database\   -> veritabanını kurmak için SQL betikleri (sırayla: 00, 02, 01)
     BENIOKU.txt -> kurulum adımları
 
@@ -30,13 +36,22 @@ param(
     [string]$ConnectionString = '',
 
     # Boş: rastgele üretilir. Sunucuya her yüklemede aynı anahtar verilmezse açık oturumlar düşer.
-    [string]$JwtKey = ''
+    [string]$JwtKey = '',
+
+    # Ayrı alan adları: API adresi (web bu adrese bağlanır) ve web sitesinin adresi (CORS'a eklenir)
+    [string]$ApiUrl = '',
+    [string]$WebOrigin = ''
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $out = Join-Path $PSScriptRoot 'out'
 $app = Join-Path $out 'app'
+$web = Join-Path $out 'web'
+$splitHosts = [bool]$ApiUrl
+if ($splitHosts -and -not $WebOrigin) { throw '-ApiUrl verildiğinde -WebOrigin de verilmelidir.' }
+$ApiUrl = $ApiUrl.TrimEnd('/')
+$WebOrigin = $WebOrigin.TrimEnd('/')
 
 function Invoke-Native([string]$Title, [scriptblock]$Command) {
     Write-Host "==> $Title" -ForegroundColor Cyan
@@ -52,9 +67,12 @@ Push-Location (Join-Path $root 'frontend/web')
 try {
     if (-not (Test-Path 'node_modules')) { Invoke-Native 'npm ci' { npm ci } }
     $env:VITE_SHOW_DEV_HINTS = if ($Ortam -eq 'Staging') { 'true' } else { 'false' }
+    # Ayrı alan adlarında web, API'ye tam adresle bağlanır; tek alan adında aynı adresten (göreli)
+    $env:VITE_API_URL = $ApiUrl
     Invoke-Native 'Frontend derleniyor' { npm run build }
 } finally {
     Remove-Item Env:\VITE_SHOW_DEV_HINTS -ErrorAction SilentlyContinue
+    Remove-Item Env:\VITE_API_URL -ErrorAction SilentlyContinue
     Pop-Location
 }
 
@@ -67,8 +85,14 @@ Invoke-Native 'API yayınlanıyor' { dotnet @publishArgs }
 # Geliştirme ayarları (yerel bağlantı, geliştirme JWT anahtarı) pakete girmez
 Remove-Item (Join-Path $app 'appsettings.Development.json') -ErrorAction SilentlyContinue
 
-# 3) React uygulaması API'nin wwwroot klasörüne
-Copy-Item (Join-Path $root 'frontend/web/dist') (Join-Path $app 'wwwroot') -Recurse
+# 3) React uygulaması: ayrı alan adlarında kendi klasörüne (IIS için SPA yönlendirmesiyle),
+#    tek alan adında API'nin wwwroot klasörüne
+if ($splitHosts) {
+    Copy-Item (Join-Path $root 'frontend/web/dist') $web -Recurse
+    Copy-Item (Join-Path $PSScriptRoot 'web.config') (Join-Path $web 'web.config')
+} else {
+    Copy-Item (Join-Path $root 'frontend/web/dist') (Join-Path $app 'wwwroot') -Recurse
+}
 
 # 4) Ortam ayarları (gizli): JWT anahtarı verilmediyse rastgele
 if (-not $JwtKey) {
@@ -81,6 +105,7 @@ $settings = [ordered]@{
     TokenOptions      = [ordered]@{ SecurityKey = $JwtKey }
     Logging           = [ordered]@{ LogLevel = [ordered]@{ Default = 'Information'; 'Microsoft.AspNetCore' = 'Warning' } }
 }
+if ($splitHosts) { $settings.Cors = [ordered]@{ AllowedOrigins = @($WebOrigin) } }
 if ($Ortam -eq 'Staging') {
     $settings.Otp = [ordered]@{ FixedCode = '123456'; ResendCooldownSeconds = 10 }
     $settings.Sms = [ordered]@{ Provider = 'console' }
@@ -109,10 +134,12 @@ $(if ($Ortam -eq 'Staging') { "   database\01_seed_data.sql    -> örnek kurs, k
 2) app\appsettings.$Ortam.json içindeki ConnectionStrings:PostgreSqlConnection değerini doldurun:
    Host=SUNUCU;Port=5432;Database=VERITABANI;Username=KULLANICI;Password=SIFRE;SSL Mode=Prefer
 
-3) app klasörünün TAMAMINI alt alan adının kök dizinine yükleyin (web.config dahil).
+3) app klasörünün TAMAMINI API alt alan adının kök dizinine yükleyin (web.config dahil).
    Panelde .NET (ASP.NET Core) 8 desteğini açın; uygulama başlangıç dosyası: HafizTakip.WebAPI.dll
+$(if ($splitHosts) { "   web klasörünün TAMAMINI web alt alan adının kök dizinine yükleyin (web.config dahil; IIS URL Rewrite gerekir).
+   Web, API'ye $ApiUrl adresinden bağlanır; API yalnızca $WebOrigin kaynağına izin verir." })
 
-4) https://ALT-ALAN-ADI/ açıldığında giriş ekranı gelmelidir.
+4) Web adresi açıldığında giriş ekranı gelmelidir.
    Sorun olursa: app\logs (web.config'te stdoutLogEnabled=true yapılarak) veya panelin hata günlüğü.
 "@
 [IO.File]::WriteAllText((Join-Path $out 'BENIOKU.txt'), $readme, (New-Object Text.UTF8Encoding $true))

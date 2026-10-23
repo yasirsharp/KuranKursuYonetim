@@ -188,8 +188,8 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 // Custom Exception Middleware
 app.ConfigureCustomExceptionMiddleware();
 
-// Yayın paketinde React uygulaması wwwroot'tadır: aynı alan adından sunulur (CORS gerekmez).
-// Geliştirmede wwwroot yoktur; frontend Vite ile ayrı çalışır.
+// Tek alan adı düzeninde React uygulaması wwwroot'tadır: aynı alan adından sunulur (CORS gerekmez).
+// Web ayrı alan adındaysa veya geliştirmede wwwroot yoktur; izinli origin'ler Cors:AllowedOrigins'tedir.
 var serveSpa = File.Exists(Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "index.html"));
 if (serveSpa)
 {
@@ -215,6 +215,11 @@ if (serveSpa)
     // Bilinmeyen API adresi 404 dönsün; diğer her adres React yönlendiricisine (index.html) gider
     app.MapFallback("/api/{**rest}", () => Results.NotFound());
     app.MapFallbackToFile("index.html");
+}
+else
+{
+    // Web ayrı alan adındayken API'nin kök adresi çalıştığını gösterir (yayından sonra kontrol için)
+    app.MapGet("/", () => Results.Ok(new { service = "Hafız Takip API", status = "çalışıyor" }));
 }
 
 // Şema EF tarafından oluşturulmaz (SQL script-first): veritabanını database/db.ps1 -Setup ile kurun.

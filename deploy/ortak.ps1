@@ -4,7 +4,8 @@
 # (bulut/CI ortamında .env yoktur; değerler ortamın gizli değişkenleri olarak verilir).
 $script:DeploySettingKeys = @(
     'FTP_HOST', 'FTP_USER', 'FTP_PASS',
-    'HAFIZ_FTP_REMOTE_DIR', 'HAFIZ_DB_CONNECTION', 'HAFIZ_DB_NAME', 'HAFIZ_JWT_KEY', 'HAFIZ_PLATFORM_ADMIN_PASSWORD'
+    'HAFIZ_FTP_API_DIR', 'HAFIZ_FTP_WEB_DIR', 'HAFIZ_API_URL', 'HAFIZ_WEB_URL', 'HAFIZ_FTP_REMOTE_DIR',
+    'HAFIZ_DB_CONNECTION', 'HAFIZ_DB_NAME', 'HAFIZ_JWT_KEY', 'HAFIZ_PLATFORM_ADMIN_PASSWORD'
 )
 
 function Read-DotEnv([string]$Path) {

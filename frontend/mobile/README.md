@@ -14,7 +14,7 @@ Henüz yok: bağlantısız kayıt kuyruğu, bildirimler, müdür özeti (bkz. yo
 
 ## Test APK'sı
 
-Her `frontend/mobile` değişikliğinde GitHub Actions'taki **Mobil APK** iş akışı analiz + test çalıştırır ve test sunucusuna (`https://hafiz.yasirsharp.com.tr`) bağlı bir APK üretir. APK, çalıştırmanın sayfasındaki **Artifacts** bölümünden indirilir. Elle başlatmak için: Actions → Mobil APK → Run workflow (farklı bir API adresi verilebilir).
+Her `frontend/mobile` değişikliğinde GitHub Actions'taki **Mobil APK** iş akışı analiz + test çalıştırır ve test sunucusunun API'sine (`https://hafiztakip.api.yasirsharp.com.tr`) bağlı bir APK üretir. APK, çalıştırmanın sayfasındaki **Artifacts** bölümünden indirilir. Elle başlatmak için: Actions → Mobil APK → Run workflow (farklı bir API adresi verilebilir).
 
 Test sunucusunda e-posta gönderilmez; giriş kodu **123456**. Deneme hesapları `database/01_seed_data.sql` içinde (ör. `ahmet.hoca@merkezkurs.com`, `mudur@merkezkurs.com`).
 
