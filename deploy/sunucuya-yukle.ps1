@@ -131,6 +131,7 @@ function Remove-FtpFile([string]$remotePath) {
 }
 
 # 3) Klasör yükleme: önce alt klasörler, sonra dosyalar; -LastFiles en sona kalır
+# Uygulama durduktan sonra da IIS dosyaları birkaç saniye kilitli tutabilir (550): artan beklemeyle tekrar denenir.
 function Publish-FtpFolder([string]$localDir, [string]$remoteDir, [string[]]$LastFiles = @()) {
     New-FtpDirectory $remoteDir
     $dirs = Get-ChildItem $localDir -Recurse -Directory | Sort-Object { $_.FullName.Length }
@@ -149,8 +150,14 @@ function Publish-FtpFolder([string]$localDir, [string]$remoteDir, [string[]]$Las
             try { Send-FtpFile $f.FullName "$remoteDir/$relative"; break }
             catch {
                 $attempt++
-                if ($attempt -ge 3) { throw "Yüklenemedi: $relative — $($_.Exception.Message)" }
-                Start-Sleep -Seconds 3
+                if ($attempt -ge 6) {
+                    throw ("Yüklenemedi: $relative — $($_.Exception.Message)`n" +
+                        "Dosya sunucuda kilitli olabilir (uygulama durmadı). Bir dakika bekleyip betiği yeniden çalıştırın; " +
+                        "sürerse Plesk'te bu alt alan adının uygulama havuzunu durdurup tekrar deneyin.")
+                }
+                $wait = 5 * $attempt
+                Write-Host "  $relative yüklenemedi, $wait sn sonra tekrar denenecek ($attempt/5)..." -ForegroundColor DarkYellow
+                Start-Sleep -Seconds $wait
             }
         }
     }
@@ -163,8 +170,8 @@ New-FtpDirectory $apiDir
 $offline = Join-Path ([IO.Path]::GetTempPath()) 'app_offline.htm'
 [IO.File]::WriteAllText($offline, '<!doctype html><meta charset="utf-8"><title>Güncelleniyor</title><p style="font-family:sans-serif;text-align:center;margin-top:20vh">Hafız Takip güncelleniyor, lütfen birkaç dakika sonra tekrar deneyin.</p>', (New-Object Text.UTF8Encoding $false))
 Send-FtpFile $offline "$apiDir/app_offline.htm"
-Write-Host "API bakım modunda; uygulamanın durması bekleniyor..." -ForegroundColor Yellow
-Start-Sleep -Seconds 5
+Write-Host "API bakım modunda; uygulamanın durması bekleniyor (20 sn)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 20
 
 $apiCount = Publish-FtpFolder $appDir $apiDir
 Remove-FtpFile "$apiDir/app_offline.htm"
