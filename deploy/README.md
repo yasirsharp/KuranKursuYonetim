@@ -20,6 +20,13 @@ pwsh ./deploy/veritabani-kur.ps1 -Migrate    # yeni migration varsa (önce)
 pwsh ./deploy/sunucuya-yukle.ps1             # derle, paketle, FTP ile yükle
 ```
 
+Natro FTP'si `.dll` dosyalarını reddediyor (550). O durumda `pwsh ./deploy/sunucuya-yukle.ps1 -Zip` kullanılır:
+betik API ve web'i ZIP olarak gönderir, bakım modunu açar ve her ZIP için Plesk Dosya Yöneticisi'nde
+**Extract Files** ("Replace existing files" işaretli) yapılmasını bekler; Enter'a basılınca bakım modunu ve ZIP'i kaldırır.
+
+API IIS'te **out-of-process** çalışır: aynı uygulama havuzundaki diğer ASP.NET Core uygulamalarıyla çakışmaz
+(in-process modda havuz başına tek uygulama çalışır, diğerleri HTTP 500.35 verir).
+
 Mobil uygulama (Flutter) bu sunucuya bağlanır; test APK'sı GitHub Actions'taki **Mobil APK** iş akışında derlenir (bkz. `frontend/mobile/README.md`).
 
 `sunucuya-yukle.ps1` önce API'yi (yükleme süresince `app_offline.htm` ile bakım modunda), sonra web'i yükler;

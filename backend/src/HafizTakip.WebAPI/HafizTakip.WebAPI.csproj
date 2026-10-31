@@ -4,6 +4,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- IIS'te ayrı süreçte çalışır: aynı uygulama havuzundaki başka ASP.NET Core uygulamalarıyla
+         çakışmaz (in-process modda havuz başına tek uygulama çalışabilir, diğerleri HTTP 500.35 verir). -->
+    <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
   </PropertyGroup>
 
   <ItemGroup>

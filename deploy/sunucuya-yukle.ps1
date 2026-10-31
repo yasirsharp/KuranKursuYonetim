@@ -18,14 +18,20 @@
   kilitli DLL'ler serbest kalır), dosyalar yüklenir, app_offline.htm silinir -> web: önce dosyalar,
   en son index.html ve web.config (yarım sürüm görünmesin).
 
+  -Zip: FTP sunucusu .dll yüklemeyi reddediyorsa (Natro'da 550 hatası) kullanılır. API ve web ZIP olarak
+  hazırlanır ve FTP ile gönderilir (gönderilemezse Plesk Dosya Yöneticisi'nden elle yüklenir); betik bakım
+  modunu açar, ZIP'lerin Plesk'te "Extract Files" ile açılmasını bekler, sonra bakım modunu ve ZIP'leri kaldırır.
+
 .EXAMPLE
   .\deploy\sunucuya-yukle.ps1               # test ortamı (Staging), sabit doğrulama kodu
+  .\deploy\sunucuya-yukle.ps1 -Zip          # .dll'ler FTP ile yüklenemiyorsa: ZIP + Plesk'te aç
   .\deploy\sunucuya-yukle.ps1 -SkipUpload   # yalnızca paketi hazırla
 #>
 param(
     [ValidateSet('Staging', 'Production')]
     [string]$Ortam = 'Staging',
-    [switch]$SkipUpload
+    [switch]$SkipUpload,
+    [switch]$Zip
 )
 
 $ErrorActionPreference = 'Stop'
@@ -151,9 +157,12 @@ function Publish-FtpFolder([string]$localDir, [string]$remoteDir, [string[]]$Las
             catch {
                 $attempt++
                 if ($attempt -ge 6) {
-                    throw ("Yüklenemedi: $relative — $($_.Exception.Message)`n" +
-                        "Dosya sunucuda kilitli olabilir (uygulama durmadı). Bir dakika bekleyip betiği yeniden çalıştırın; " +
-                        "sürerse Plesk'te bu alt alan adının uygulama havuzunu durdurup tekrar deneyin.")
+                    $hint = if ($relative -like '*.dll') {
+                        "FTP sunucusu .dll dosyalarını kabul etmiyor olabilir; betiği -Zip ile çalıştırın: pwsh ./deploy/sunucuya-yukle.ps1 -Zip"
+                    } else {
+                        "Dosya sunucuda kilitli olabilir (uygulama durmadı). Bir dakika bekleyip betiği yeniden çalıştırın."
+                    }
+                    throw "Yüklenemedi: $relative — $($_.Exception.Message)`n$hint"
                 }
                 $wait = 5 * $attempt
                 Write-Host "  $relative yüklenemedi, $wait sn sonra tekrar denenecek ($attempt/5)..." -ForegroundColor DarkYellow
@@ -165,10 +174,45 @@ function Publish-FtpFolder([string]$localDir, [string]$remoteDir, [string[]]$Las
     return $files.Count
 }
 
-# 4) API: bakım modu -> dosyalar -> bakım modundan çık
-New-FtpDirectory $apiDir
 $offline = Join-Path ([IO.Path]::GetTempPath()) 'app_offline.htm'
 [IO.File]::WriteAllText($offline, '<!doctype html><meta charset="utf-8"><title>Güncelleniyor</title><p style="font-family:sans-serif;text-align:center;margin-top:20vh">Hafız Takip güncelleniyor, lütfen birkaç dakika sonra tekrar deneyin.</p>', (New-Object Text.UTF8Encoding $false))
+
+# 4a) -Zip: ZIP + Plesk'te "Extract Files" (FTP .dll kabul etmediğinde)
+if ($Zip) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    function Send-ZipStep([string]$sourceDir, [string]$zipName, [string]$remoteDir, [string]$label) {
+        $zipPath = Join-Path $PSScriptRoot "out/$zipName"
+        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+        [IO.Compression.ZipFile]::CreateFromDirectory($sourceDir, $zipPath)
+        New-FtpDirectory $remoteDir
+        $uploaded = $true
+        try { Send-FtpFile $zipPath "$remoteDir/$zipName" } catch { $uploaded = $false }
+
+        Write-Host ""
+        Write-Host "== $label ($remoteDir)" -ForegroundColor Cyan
+        if (-not $uploaded) {
+            Write-Host "  ZIP FTP ile gönderilemedi. Plesk -> Files -> $remoteDir -> '+' -> Upload File -> $zipPath" -ForegroundColor Yellow
+        }
+        Write-Host "  Plesk -> Files -> $remoteDir -> $zipName satırındaki menü -> Extract Files"
+        Write-Host "  'Replace existing files' işaretli olsun -> OK"
+        Read-Host "  Açma işlemi bitince Enter'a basın" | Out-Null
+        Remove-FtpFile "$remoteDir/$zipName"
+    }
+
+    New-FtpDirectory $apiDir
+    Send-FtpFile $offline "$apiDir/app_offline.htm"
+    Write-Host "API bakım modunda (dosyalar serbest kalsın diye)." -ForegroundColor Yellow
+    Send-ZipStep $appDir 'api.zip' $apiDir 'API'
+    Remove-FtpFile "$apiDir/app_offline.htm"
+    Write-Host "API güncellendi, bakım modu kapandı: $($cfg['HAFIZ_API_URL'])" -ForegroundColor Green
+
+    Send-ZipStep $webPackageDir 'web.zip' $webDir 'Web'
+    Write-Host "Web güncellendi: $($cfg['HAFIZ_WEB_URL'])" -ForegroundColor Green
+    return
+}
+
+# 4b) API: bakım modu -> dosyalar -> bakım modundan çık
+New-FtpDirectory $apiDir
 Send-FtpFile $offline "$apiDir/app_offline.htm"
 Write-Host "API bakım modunda; uygulamanın durması bekleniyor (20 sn)..." -ForegroundColor Yellow
 Start-Sleep -Seconds 20
@@ -177,6 +221,6 @@ $apiCount = Publish-FtpFolder $appDir $apiDir
 Remove-FtpFile "$apiDir/app_offline.htm"
 Write-Host "API yüklendi: $apiCount dosya -> $apiDir ($($cfg['HAFIZ_API_URL']))" -ForegroundColor Green
 
-# 5) Web: index.html ve web.config en son (eski sayfa, yeni dosyalar yerine oturana kadar çalışmaya devam eder)
+# 5) Web (FTP): index.html ve web.config en son (eski sayfa, yeni dosyalar yerine oturana kadar çalışmaya devam eder)
 $webCount = Publish-FtpFolder $webPackageDir $webDir -LastFiles @('index.html', 'web.config')
 Write-Host "Web yüklendi: $webCount dosya -> $webDir ($($cfg['HAFIZ_WEB_URL']))" -ForegroundColor Green

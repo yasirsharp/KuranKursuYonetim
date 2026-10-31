@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 
 /// Ekranda gösterilecek Türkçe mesajla API hatası.
@@ -16,7 +18,11 @@ class ApiException implements Exception {
   factory ApiException.fromDio(DioException error) {
     final response = error.response;
     if (response == null) {
-      return const ApiException('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.');
+      // Sertifika geçersizse bağlantı kurulamaz; kullanıcıya internetini kontrol etmesini söylemek yanıltıcı olur
+      final tlsFailure = error.type == DioExceptionType.badCertificate || error.error is HandshakeException;
+      return ApiException(tlsFailure
+          ? 'Sunucunun güvenlik sertifikası geçersiz; bağlantı güvenli olmadığı için kurulmadı. Kurs yöneticinize bildirin.'
+          : 'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.');
     }
 
     final data = response.data;

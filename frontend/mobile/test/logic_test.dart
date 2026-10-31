@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hafiz_takip/core/constants/labels.dart';
@@ -95,7 +97,16 @@ void main() {
       expect(e.fieldErrors['pageNo'], 'Sayfa numarası 1-604 arasında olmalıdır.');
     });
 
-    test('yanıt yoksa bağlantı mesajı', () {
+    test('geçersiz sertifikada bağlantı mesajı yerine sertifika mesajı', () {
+      final e = ApiException.fromDio(DioException(
+        requestOptions: request,
+        type: DioExceptionType.connectionError,
+        error: const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
+      ));
+      expect(e.message, contains('sertifikası geçersiz'));
+    });
+
+        test('yanıt yoksa bağlantı mesajı', () {
       final e = ApiException.fromDio(DioException(requestOptions: request, type: DioExceptionType.connectionError));
       expect(e.message, contains('İnternet bağlantınızı'));
     });
