@@ -84,7 +84,7 @@ export default function MobileAppPage() {
         <a className="mobile-app-download" href={ANDROID_APK_URL} download="hafiz-takip.apk">
           ⬇️ Uygulamayı indir
         </a>
-        <p className="mobile-app-small">Dosya boyutu yaklaşık 25 MB</p>
+        <p className="mobile-app-small">Dosya büyüktür; mümkünse Wi-Fi'ye bağlıyken indirin.</p>
       </header>
 
       <section aria-labelledby="kurulum">
