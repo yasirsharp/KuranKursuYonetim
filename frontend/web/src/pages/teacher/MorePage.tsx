@@ -45,6 +45,13 @@ export default function MorePage() {
             <span className="menu-item-hint">Tatiller, ders günleri</span>
           </button>
         )}
+        {isStaff && (
+          <button className="menu-item" onClick={() => navigate(PATHS.mobileApp)}>
+            <Icon name="phone" size={20} color="var(--color-green)" />
+            Telefon uygulaması
+            <span className="menu-item-hint">İndir ve kur</span>
+          </button>
+        )}
         <button className="menu-item menu-item-danger" onClick={handleLogout}>
           <Icon name="back" size={20} color="var(--color-red)" />
           Çıkış Yap

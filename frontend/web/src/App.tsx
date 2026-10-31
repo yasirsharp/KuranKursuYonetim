@@ -4,6 +4,7 @@ import LoginPage from './pages/auth/LoginPage';
 import OtpVerifyPage from './pages/auth/OtpVerifyPage';
 import CourseApplicationPage from './pages/auth/CourseApplicationPage';
 import ApplicationStatusPage from './pages/auth/ApplicationStatusPage';
+import MobileAppPage from './pages/auth/MobileAppPage';
 import TeacherLayout from './layouts/TeacherLayout';
 import PlatformLayout from './layouts/PlatformLayout';
 import DashboardPage from './pages/teacher/DashboardPage';
@@ -67,6 +68,9 @@ export default function App() {
           <Route path={PATHS.verifyOtp} element={<PublicRoute><OtpVerifyPage /></PublicRoute>} />
           <Route path={PATHS.courseApplication} element={<PublicRoute><CourseApplicationPage /></PublicRoute>} />
           <Route path={PATHS.applicationStatus} element={<ApplicationRoute><ApplicationStatusPage /></ApplicationRoute>} />
+
+          {/* Herkese açık: telefon uygulamasını indirme ve kurma */}
+          <Route path={PATHS.mobileApp} element={<MobileAppPage />} />
 
           {/* Platform yöneticisi */}
           <Route path={PATHS.platformLogin} element={<PublicRoute><PlatformLoginPage /></PublicRoute>} />

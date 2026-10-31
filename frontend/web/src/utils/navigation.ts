@@ -11,6 +11,7 @@ export const PATHS = {
   settings: '/settings',
   calendar: '/calendar',
   more: '/more',
+  mobileApp: '/mobil',
 } as const;
 
 /** Giriş sonrası kullanıcının açılış sayfası */

@@ -128,6 +128,9 @@ export default function LoginPage() {
       </form>
 
       <div className="auth-links">
+        <Link to={PATHS.mobileApp} style={{ color: 'var(--color-green)', fontWeight: 800, fontSize: 16 }}>
+          📱 Telefon uygulamasını indir
+        </Link>
         <span>
           Kursunuz henüz kayıtlı değil mi?{' '}
           <Link to={PATHS.courseApplication} style={{ color: 'var(--color-green)', fontWeight: 800 }}>

@@ -414,3 +414,75 @@
 }
 .calendar-event.day-off { border-left-color: var(--color-red); }
 .calendar-event-title { font-weight: 600; }
+
+/* Mobil uygulama indirme sayfası — yaşça büyük kullanıcılar için büyük yazı ve dokunma alanları */
+.mobile-app-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+.mobile-app-page h2 { font-size: 22px; margin: 32px 0 12px; color: var(--color-green); }
+.mobile-app-page h3 { font-size: 19px; margin: 0 0 4px; }
+.mobile-app-page p { margin: 0; }
+.mobile-app-hero {
+  text-align: center;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 28px 20px;
+}
+.mobile-app-hero h1 { font-size: 26px; margin: 8px 0; color: var(--color-green); }
+.mobile-app-icon { font-size: 44px; }
+.mobile-app-download {
+  display: block;
+  margin: 20px auto 8px;
+  max-width: 360px;
+  padding: 18px 24px;
+  border-radius: var(--radius-md);
+  background: var(--color-green);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.mobile-app-download:focus-visible { outline: 3px solid var(--color-gold); outline-offset: 3px; }
+.mobile-app-small, .mobile-app-note { font-size: 15px; color: var(--color-muted); }
+.mobile-app-note { margin-top: 12px; }
+.mobile-app-steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+.mobile-app-steps li {
+  display: flex;
+  gap: 14px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+.mobile-app-step-no {
+  flex: 0 0 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-green-pale);
+  color: var(--color-green);
+  font-weight: 800;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mobile-app-qr { text-align: center; }
+.mobile-app-qr img { margin-top: 12px; border-radius: 8px; }
+@media (max-width: 768px) { .mobile-app-qr { display: none; } }
+.mobile-app-page details {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.mobile-app-page summary { font-weight: 700; cursor: pointer; min-height: 32px; }
+.mobile-app-page details p { margin-top: 8px; }
+.mobile-app-back { margin-top: 28px; text-align: center; }
+.mobile-app-back a { color: var(--color-green); font-weight: 700; }

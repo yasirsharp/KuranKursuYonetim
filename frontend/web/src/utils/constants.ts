@@ -1,6 +1,14 @@
 /** API Base URL — development'ta Vite proxy, production'da tam URL */
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+/**
+ * Android uygulamasının (APK) indirme adresi: GitHub Actions her derlemede bu sürüme yükler
+ * (.github/workflows/mobile-apk.yml). Derlemede VITE_ANDROID_APK_URL ile değiştirilebilir.
+ */
+export const ANDROID_APK_URL =
+  import.meta.env.VITE_ANDROID_APK_URL ||
+  'https://github.com/yasirsharp/KuranKursuYonetim/releases/download/mobil-test/hafiz-takip.apk';
+
 /** localStorage key'leri */
 export const STORAGE_KEYS = {
   TOKEN: 'hafiz_takip_token',
