@@ -20,6 +20,9 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Yanıtlarda sunucu yazılımı (Kestrel) bilgisi verilmez
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+
 // ── Yapılandırma doğrulaması ─────────────────────────────────────────
 // Secret'lar repoda tutulmaz: üretimde ortam değişkeni, geliştirmede appsettings.Development.json
 // veya `dotnet user-secrets` kullanılır. Eksik/zayıf ayarla uygulama başlamaz.
