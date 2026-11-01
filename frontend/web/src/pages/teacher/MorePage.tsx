@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Icon } from '../../components/ui/Icon';
 import { PATHS } from '../../utils/navigation';
+import { openWelcomeTour } from '../../components/onboarding/WelcomeTour';
 
 const ROLE_LABELS: Record<string, string> = {
   tenant_admin: 'Kurs müdürü',
@@ -52,6 +53,10 @@ export default function MorePage() {
             <span className="menu-item-hint">İndir ve kur</span>
           </button>
         )}
+        <button className="menu-item" onClick={openWelcomeTour}>
+          <Icon name="star" size={20} color="var(--color-gold)" />
+          Tanıtımı tekrar izle
+        </button>
         <button className="menu-item menu-item-danger" onClick={handleLogout}>
           <Icon name="back" size={20} color="var(--color-red)" />
           Çıkış Yap

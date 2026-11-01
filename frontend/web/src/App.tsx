@@ -5,6 +5,7 @@ import OtpVerifyPage from './pages/auth/OtpVerifyPage';
 import CourseApplicationPage from './pages/auth/CourseApplicationPage';
 import ApplicationStatusPage from './pages/auth/ApplicationStatusPage';
 import MobileAppPage from './pages/auth/MobileAppPage';
+import WelcomeTour from './components/onboarding/WelcomeTour';
 import TeacherLayout from './layouts/TeacherLayout';
 import PlatformLayout from './layouts/PlatformLayout';
 import DashboardPage from './pages/teacher/DashboardPage';
@@ -62,6 +63,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <WelcomeTour />
         <Routes>
           {/* Auth sayfaları */}
           <Route path={PATHS.login} element={<PublicRoute><LoginPage /></PublicRoute>} />

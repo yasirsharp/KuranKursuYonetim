@@ -1,0 +1,230 @@
+/* İlk açılış tanıtımı — zümrüt + altın, yumuşak geçişler. "Hareketi azalt" tercihinde animasyon yok. */
+
+.wt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(12, 32, 22, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: wt-fade 0.35s ease-out both;
+}
+
+.wt-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border-radius: 24px;
+  background: var(--color-card);
+  box-shadow: 0 30px 80px rgba(8, 30, 18, 0.45), 0 0 0 1px rgba(212, 168, 39, 0.35);
+  animation: wt-rise 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+/* Üst bölüm: koyu zümrüt, dönen yıldız deseni, yükselen altın parıltılar */
+.wt-hero {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 120%, rgba(212, 168, 39, 0.35), transparent 60%),
+    linear-gradient(160deg, #0F3D27 0%, #1B5C3A 55%, #2E7D52 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wt-hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-gold-light), transparent);
+}
+
+.wt-pattern {
+  position: absolute;
+  width: 160%;
+  height: 160%;
+  left: -30%;
+  top: -30%;
+  animation: wt-spin 120s linear infinite;
+}
+
+.wt-sparkles span {
+  position: absolute;
+  bottom: -10px;
+  left: calc(6% + var(--i) * 9.5%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-gold-light);
+  box-shadow: 0 0 8px rgba(212, 168, 39, 0.9);
+  opacity: 0;
+  animation: wt-rise-sparkle 6s ease-in infinite;
+  animation-delay: calc(var(--i) * 0.6s);
+}
+
+.wt-art {
+  position: relative;
+  width: 200px;
+  height: 150px;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.25));
+}
+.wt-svg {
+  width: 100%;
+  height: 100%;
+  animation: wt-float 5s ease-in-out infinite;
+}
+
+.wt-skip {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 248, 224, 0.4);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFF8E0;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.wt-skip:hover { background: rgba(255, 255, 255, 0.22); }
+
+.wt-body { padding: 24px 24px 22px; text-align: center; }
+.wt-text { min-height: 150px; }
+
+.wt-eyebrow {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+/* Başlıkta bir kez geçen altın ışıltı */
+.wt-title {
+  margin: 8px 0 10px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--color-green);
+  background: linear-gradient(100deg, var(--color-green) 40%, var(--color-gold-light) 50%, var(--color-green) 60%);
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: wt-shimmer 1.6s ease-out 0.25s both;
+}
+
+.wt-desc {
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+/* İlerleme: etkin adım genişleyen altın çubuk */
+.wt-progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 20px;
+}
+.wt-dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  cursor: pointer;
+  transition: width 0.35s ease, background 0.35s ease;
+}
+.wt-dot.done { background: var(--color-green-light); }
+.wt-dot.active {
+  width: 30px;
+  background: linear-gradient(90deg, var(--color-gold), var(--color-gold-light));
+}
+
+.wt-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.wt-btn {
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.wt-btn:focus-visible, .wt-dot:focus-visible, .wt-skip:focus-visible {
+  outline: 3px solid var(--color-gold-light);
+  outline-offset: 2px;
+}
+.wt-btn-primary {
+  flex: 1 1 160px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-green), var(--color-green-light));
+  box-shadow: 0 8px 20px rgba(27, 92, 58, 0.35);
+}
+.wt-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(27, 92, 58, 0.45); }
+.wt-btn-ghost {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+}
+.wt-btn-ghost:hover { background: var(--color-gold-pale); }
+
+/* Adım geçişleri (yöne göre) */
+.wt-enter-next { animation: wt-in-next 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.wt-enter-prev { animation: wt-in-prev 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* İllüstrasyon ayrıntıları */
+.wt-twinkle { animation: wt-twinkle 2.4s ease-in-out infinite; }
+.wt-pop { transform-origin: 122px 40px; animation: wt-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) 0.35s both; }
+.wt-bounce { animation: wt-bounce 1.8s ease-in-out infinite; }
+
+@keyframes wt-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wt-rise {
+  from { opacity: 0; transform: translateY(24px) scale(0.94); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes wt-spin { to { transform: rotate(360deg); } }
+@keyframes wt-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes wt-rise-sparkle {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(-240px) scale(1.1); opacity: 0; }
+}
+@keyframes wt-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@keyframes wt-in-next { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes wt-in-prev { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@keyframes wt-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes wt-pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes wt-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+
+@media (max-width: 420px) {
+  .wt-hero { height: 190px; }
+  .wt-title { font-size: 23px; }
+  .wt-body { padding: 20px 18px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-backdrop, .wt-dialog, .wt-pattern, .wt-sparkles span, .wt-svg, .wt-title,
+  .wt-enter-next, .wt-enter-prev, .wt-twinkle, .wt-pop, .wt-bounce {
+    animation: none !important;
+  }
+  .wt-sparkles { display: none; }
+  .wt-title { background-position: 0 0; }
+  .wt-dot, .wt-btn { transition: none; }
+}
