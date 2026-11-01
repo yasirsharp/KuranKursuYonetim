@@ -6,6 +6,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/labels.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/onboarding_provider.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -52,6 +54,15 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              fullscreenDialog: true,
+              builder: (_) => const _ReplayOnboarding(),
+            )),
+            icon: const Icon(Icons.auto_awesome, color: AppColors.gold),
+            label: const Text('Tanıtımı tekrar izle'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
             onPressed: () => _confirmSignOut(context, ref),
             icon: const Icon(Icons.logout, color: AppColors.red),
             label: const Text('Çıkış yap', style: TextStyle(color: AppColors.red)),
@@ -67,3 +78,35 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 }
+
+/// Giriş yapmış kullanıcı için tanıtımı yeniden gösterir; bitince profil ekranına döner.
+class _ReplayOnboarding extends ConsumerWidget {
+  const _ReplayOnboarding();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(onboardingProvider, (previous, next) {
+      if (previous == false && next == true) Navigator.of(context).pop();
+    });
+    return const _ReplayHost();
+  }
+}
+
+class _ReplayHost extends ConsumerStatefulWidget {
+  const _ReplayHost();
+
+  @override
+  ConsumerState<_ReplayHost> createState() => _ReplayHostState();
+}
+
+class _ReplayHostState extends ConsumerState<_ReplayHost> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(onboardingProvider.notifier).replay());
+  }
+
+  @override
+  Widget build(BuildContext context) => const OnboardingScreen();
+}
+

@@ -73,7 +73,15 @@ void main() {
       expect(authRedirect(auth, '/attendance'), isNull);
     });
 
-    test('onay bekleyen kurs ve veli rolü engellenir', () {
+    test('ilk açılışta tanıtım gösterilir; okunurken açılış ekranında beklenir', () {
+      const auth = AuthState(AuthStatus.signedOut);
+      expect(authRedirect(auth, '/login', onboardingSeen: null), '/splash');
+      expect(authRedirect(auth, '/login', onboardingSeen: false), '/welcome');
+      expect(authRedirect(auth, '/welcome', onboardingSeen: false), isNull);
+      expect(authRedirect(auth, '/welcome', onboardingSeen: true), '/login');
+    });
+
+        test('onay bekleyen kurs ve veli rolü engellenir', () {
       expect(authRedirect(AuthState(AuthStatus.signedIn, session(tenantStatus: 'pending')), '/students'), '/blocked');
       expect(authRedirect(AuthState(AuthStatus.signedIn, session(role: 'parent')), '/students'), '/blocked');
       expect(blockedReason(AuthState(AuthStatus.signedIn, session(tenantStatus: 'pending'))), contains('onay bekliyor'));

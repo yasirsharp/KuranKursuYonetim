@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../core/constants/labels.dart';
 import '../presentation/providers/auth_provider.dart';
+import '../presentation/providers/onboarding_provider.dart';
 import '../presentation/screens/attendance/attendance_screen.dart';
 import '../presentation/screens/auth/code_screen.dart';
 import '../presentation/screens/auth/login_screen.dart';
+import '../presentation/screens/onboarding/onboarding_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/shell/app_shell.dart';
 import '../presentation/screens/students/student_detail_screen.dart';
@@ -27,31 +29,39 @@ String? blockedReason(AuthState auth) {
   return null;
 }
 
-/// Oturum durumu değişince yönlendirme yeniden değerlendirilir.
-String? authRedirect(AuthState auth, String location) {
+/// Oturum ve tanıtım durumu değişince yönlendirme yeniden değerlendirilir.
+/// [onboardingSeen] null: tanıtımın görülüp görülmediği henüz okunmadı.
+String? authRedirect(AuthState auth, String location, {bool? onboardingSeen = true}) {
   final inLogin = location.startsWith('/login');
   switch (auth.status) {
     case AuthStatus.restoring:
       return location == '/splash' ? null : '/splash';
     case AuthStatus.signedOut:
+      if (onboardingSeen == null) return location == '/splash' ? null : '/splash';
+      if (!onboardingSeen) return location == '/welcome' ? null : '/welcome';
       return inLogin ? null : '/login';
     case AuthStatus.signedIn:
       if (blockedReason(auth) != null) return location == '/blocked' ? null : '/blocked';
-      if (inLogin || location == '/splash' || location == '/blocked') return '/students';
+      if (inLogin || location == '/splash' || location == '/blocked' || location == '/welcome') return '/students';
       return null;
   }
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authListenable = ValueNotifier<AuthState>(ref.read(authProvider));
+  final onboardingListenable = ValueNotifier<bool?>(ref.read(onboardingProvider));
   ref.listen(authProvider, (_, next) => authListenable.value = next);
+  ref.listen(onboardingProvider, (_, next) => onboardingListenable.value = next);
   ref.onDispose(authListenable.dispose);
+  ref.onDispose(onboardingListenable.dispose);
 
   return GoRouter(
     initialLocation: '/splash',
-    refreshListenable: authListenable,
-    redirect: (context, state) => authRedirect(authListenable.value, state.matchedLocation),
+    refreshListenable: Listenable.merge([authListenable, onboardingListenable]),
+    redirect: (context, state) =>
+        authRedirect(authListenable.value, state.matchedLocation, onboardingSeen: onboardingListenable.value),
     routes: [
+      GoRoute(path: '/welcome', builder: (_, _) => const OnboardingScreen()),
       GoRoute(path: '/splash', builder: (_, _) => const Scaffold(body: Center(child: CircularProgressIndicator()))),
       GoRoute(
         path: '/login',

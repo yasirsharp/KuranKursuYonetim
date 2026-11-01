@@ -15,6 +15,7 @@ class AppColors {
   static const greenPale = Color(0xFFE8F5EE);
 
   static const gold = Color(0xFFB8881A);
+  static const goldLight = Color(0xFFD4A827);
   static const goldPale = Color(0xFFFFF8E0);
 
   static const red = Color(0xFFB03020);
