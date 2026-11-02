@@ -83,7 +83,7 @@ public class CourseApplicationDataTests
         var manager = new TenantManager(
             new EfTenantDal(context), new EfTenantSettingDal(context), new EfUserDal(context), new EfUnitOfWork(context),
             new MemoryCache(new MemoryCacheOptions()), new FixedCurrentUser(Guid.NewGuid(), UserRole.SuperAdmin),
-            new CapturingSmsSender(), TimeProvider.System, NullLogger<TenantManager>.Instance);
+            new NullEmailSender(), TimeProvider.System, NullLogger<TenantManager>.Instance);
 
         var result = await manager.AddAsync(new CreateTenantDto { Name = "Platform Kursu", Slug = "platform-kursu-it" });
 
@@ -166,6 +166,13 @@ public class CourseApplicationDataTests
         user.Should().NotBeNull();
         user!.Role.Should().Be(UserRole.SuperAdmin);
     }
+}
+
+/// <summary>E-posta göndermez; başvuru kararı bildirimi bu testte ölçülmez.</summary>
+internal sealed class NullEmailSender : HafizTakip.Core.Utilities.Email.IEmailSender
+{
+    public Task<bool> SendAsync(string toAddress, string subject, string body, CancellationToken cancellationToken = default) =>
+        Task.FromResult(true);
 }
 
 internal sealed class CapturingSmsSender : ISmsSender

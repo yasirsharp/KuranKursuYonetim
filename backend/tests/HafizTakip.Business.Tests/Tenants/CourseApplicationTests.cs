@@ -8,6 +8,7 @@ using HafizTakip.Core.Constants;
 using HafizTakip.Core.DataAccess;
 using HafizTakip.Core.Entities.Platform;
 using HafizTakip.Core.Enums;
+using HafizTakip.Core.Utilities.Email;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Results;
 using HafizTakip.Core.Utilities.Security.Otp;
@@ -31,6 +32,8 @@ public class CourseApplicationTests
     private readonly Mock<IAuthService> _authService = new();
     private readonly Mock<ITenantContext> _tenantContext = new();
     private readonly Mock<ISmsSender> _smsSender = new();
+    private readonly Mock<IEmailSender> _emailSender = new();
+    private readonly List<(string To, string Subject, string Body)> _emails = new();
     private readonly Mock<ICurrentUser> _currentUser = new();
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
     private readonly List<(string Phone, string Message)> _sms = new();
@@ -42,6 +45,10 @@ public class CourseApplicationTests
         _smsSender
             .Setup(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback<string, string, CancellationToken>((phone, message, _) => _sms.Add((phone, message)))
+            .ReturnsAsync(true);
+        _emailSender
+            .Setup(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string, CancellationToken>((to, subject, body, _) => _emails.Add((to, subject, body)))
             .ReturnsAsync(true);
         _unitOfWork
             .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task<IDataResult<TokenResponseDto>>>>()))
@@ -60,7 +67,7 @@ public class CourseApplicationTests
 
     private TenantManager CreateTenants() => new(
         _tenantDal.Object, _settingDal.Object, _userDal.Object, _unitOfWork.Object, _cache,
-        _currentUser.Object, _smsSender.Object, TimeProvider.System, NullLogger<TenantManager>.Instance);
+        _currentUser.Object, _emailSender.Object, TimeProvider.System, NullLogger<TenantManager>.Instance);
 
     private static CourseApplicationDto Application(string code) => new()
     {
@@ -81,11 +88,11 @@ public class CourseApplicationTests
 
     private Tenant ExistingTenant(string status)
     {
-        var tenant = new Tenant { Id = Guid.NewGuid(), Name = "Yeşilvadi", Status = status, IsActive = true };
+        var tenant = new Tenant { Id = Guid.NewGuid(), Name = "Yeşilvadi", Status = status, IsActive = true, ContactEmail = "iletisim@yesilvadi.com" };
         _tenantDal.Setup(d => d.GetAsync(It.IsAny<Expression<Func<Tenant, bool>>>())).ReturnsAsync(tenant);
         _tenantContext.Setup(c => c.TenantId).Returns(tenant.Id);
         _userDal.Setup(d => d.GetTenantAdminsAcrossTenantsAsync(tenant.Id))
-            .ReturnsAsync(new List<User> { new() { TenantId = tenant.Id, PhoneNumber = Phone, Role = UserRole.TenantAdmin } });
+            .ReturnsAsync(new List<User> { new() { TenantId = tenant.Id, PhoneNumber = Phone, Email = "Mudur@Yesilvadi.com", Role = UserRole.TenantAdmin } });
         return tenant;
     }
 
@@ -252,7 +259,7 @@ public class CourseApplicationTests
     // ── Platform onayı ─────────────────────────────────────────────
 
     [Fact]
-    public async Task Approve_Pending_ShouldActivateRecordReviewerAndNotifyAdmin()
+    public async Task Approve_Pending_ShouldActivateRecordReviewerAndNotifyByEmail()
     {
         var tenant = ExistingTenant(TenantStatus.Pending);
         var reviewer = Guid.NewGuid();
@@ -265,7 +272,10 @@ public class CourseApplicationTests
         tenant.Status.Should().Be(TenantStatus.Active);
         tenant.ReviewedBy.Should().Be(reviewer);
         tenant.ReviewedAt.Should().NotBeNull();
-        _sms.Should().ContainSingle(s => s.Phone == Phone && s.Message.Contains("onaylandı"));
+        // Karar SMS ile değil (OTP kanalı yalnızca kod içindir), kurs ve yönetici e-postasına gider
+        _emails.Select(e => e.To).Should().BeEquivalentTo("mudur@yesilvadi.com", "iletisim@yesilvadi.com");
+        _emails.Should().OnlyContain(e => e.Subject.Contains("onaylandı") && e.Body.Contains("Yeşilvadi"));
+        _sms.Should().BeEmpty();
         _cache.TryGetValue(TenantCacheKeys.Status(tenant.Id), out _).Should().BeFalse();
     }
 
@@ -279,11 +289,11 @@ public class CourseApplicationTests
         (await CreateTenants().ApproveAsync(tenant.Id)).ErrorType.Should().Be(ResultErrorType.Conflict);
         (await CreateTenants().RejectAsync(tenant.Id, new RejectCourseApplicationDto { Reason = "Eksik bilgi" }))
             .ErrorType.Should().Be(ResultErrorType.Conflict);
-        _sms.Should().BeEmpty();
+        _emails.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Reject_Pending_ShouldStoreReasonAndSendItBySms()
+    public async Task Reject_Pending_ShouldStoreReasonAndSendItByEmail()
     {
         var tenant = ExistingTenant(TenantStatus.Pending);
 
@@ -292,21 +302,36 @@ public class CourseApplicationTests
         result.Success.Should().BeTrue();
         tenant.Status.Should().Be(TenantStatus.Rejected);
         tenant.RejectionReason.Should().Be("Adres bilgisi eksik.");
-        _sms.Should().ContainSingle(s => s.Message.Contains("Adres bilgisi eksik."));
+        _emails.Should().HaveCount(2).And.OnlyContain(e => e.Subject.Contains("onaylanmadı") && e.Body.Contains("Adres bilgisi eksik."));
     }
 
     [Fact]
-    public async Task Approve_WhenSmsFails_ShouldStillApprove()
+    public async Task Approve_WhenEmailFails_ShouldStillApprove()
     {
         var tenant = ExistingTenant(TenantStatus.Pending);
-        _smsSender
-            .Setup(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("SMS servisi yanıt vermedi"));
+        _emailSender
+            .Setup(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SMTP yanıt vermedi"));
 
         var result = await CreateTenants().ApproveAsync(tenant.Id);
 
         result.Success.Should().BeTrue();
         tenant.Status.Should().Be(TenantStatus.Active);
+    }
+
+    [Fact]
+    public async Task Approve_WithoutAnyEmail_ShouldApproveWithoutNotification()
+    {
+        var tenant = ExistingTenant(TenantStatus.Pending);
+        tenant.ContactEmail = null;
+        _userDal.Setup(d => d.GetTenantAdminsAcrossTenantsAsync(tenant.Id))
+            .ReturnsAsync(new List<User> { new() { TenantId = tenant.Id, PhoneNumber = Phone, Role = UserRole.TenantAdmin } });
+
+        var result = await CreateTenants().ApproveAsync(tenant.Id);
+
+        result.Success.Should().BeTrue();
+        _emails.Should().BeEmpty();
+        _sms.Should().BeEmpty();
     }
 
     [Theory]

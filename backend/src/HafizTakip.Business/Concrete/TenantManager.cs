@@ -9,7 +9,8 @@ using HafizTakip.Core.Aspects.Autofac.Validation;
 using HafizTakip.Core.Entities.Platform;
 using HafizTakip.Core.Utilities.IoC;
 using HafizTakip.Core.Utilities.Results;
-using HafizTakip.Core.Utilities.Sms;
+using HafizTakip.Core.Utilities.Email;
+using HafizTakip.Core.Utilities.Helpers;
 using HafizTakip.DataAccess.Abstract;
 using HafizTakip.Entities.Concrete;
 using HafizTakip.Entities.Dtos;
@@ -27,7 +28,7 @@ public class TenantManager : ITenantService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMemoryCache _cache;
     private readonly ICurrentUser _currentUser;
-    private readonly ISmsSender _smsSender;
+    private readonly IEmailSender _emailSender;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<TenantManager> _logger;
 
@@ -38,7 +39,7 @@ public class TenantManager : ITenantService
         IUnitOfWork unitOfWork,
         IMemoryCache cache,
         ICurrentUser currentUser,
-        ISmsSender smsSender,
+        IEmailSender emailSender,
         TimeProvider timeProvider,
         ILogger<TenantManager> logger)
     {
@@ -48,7 +49,7 @@ public class TenantManager : ITenantService
         _unitOfWork = unitOfWork;
         _cache = cache;
         _currentUser = currentUser;
-        _smsSender = smsSender;
+        _emailSender = emailSender;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -188,8 +189,9 @@ public class TenantManager : ITenantService
         await _tenantDal.UpdateAsync(tenant);
         _cache.Remove(TenantCacheKeys.Status(tenant.Id));
 
-        await NotifyAdminsAsync(tenant,
-            $"Hafız Takip: \"{tenant.Name}\" kurs başvurunuz onaylandı. Uygulamaya giriş yaparak kursunuzu kurmaya başlayabilirsiniz.");
+        await NotifyApplicantAsync(tenant,
+            "Hafız Takip: kurs başvurunuz onaylandı",
+            $"\"{tenant.Name}\" kurs başvurunuz onaylandı. Uygulamaya giriş yaparak kursunuzu kurmaya başlayabilirsiniz.");
         return new SuccessResult("Kurs başvurusu onaylandı.");
     }
 
@@ -209,26 +211,43 @@ public class TenantManager : ITenantService
         await _tenantDal.UpdateAsync(tenant);
         _cache.Remove(TenantCacheKeys.Status(tenant.Id));
 
-        await NotifyAdminsAsync(tenant,
-            $"Hafız Takip: \"{tenant.Name}\" kurs başvurunuz onaylanmadı. Gerekçe: {tenant.RejectionReason} " +
-            "Bilgilerinizi düzenleyip yeniden gönderebilirsiniz.");
+        await NotifyApplicantAsync(tenant,
+            "Hafız Takip: kurs başvurunuz onaylanmadı",
+            $"\"{tenant.Name}\" kurs başvurunuz onaylanmadı.\n\nGerekçe: {tenant.RejectionReason}\n\n" +
+            "Uygulamaya giriş yaparak bilgilerinizi düzenleyip yeniden gönderebilirsiniz.");
         return new SuccessResult("Kurs başvurusu reddedildi.");
     }
 
-    /// <summary>Karar SMS'i kaydı bozmaz: gönderilemezse yalnızca loglanır (başvuran uygulamada da durumu görür).</summary>
-    private async Task NotifyAdminsAsync(Tenant tenant, string message)
+    /// <summary>
+    /// Başvuru kararı kursun iletişim e-postasına ve yöneticilerin e-postalarına gönderilir (SMS yalnızca
+    /// doğrulama kodları içindir: NetGSM OTP kanalı bilgilendirme mesajı taşımaz). Gönderilemezse karar
+    /// geri alınmaz, yalnızca loglanır; başvuran giriş yapınca durumu uygulamada da görür.
+    /// </summary>
+    private async Task NotifyApplicantAsync(Tenant tenant, string subject, string body)
     {
         var admins = await _userDal.GetTenantAdminsAcrossTenantsAsync(tenant.Id);
-        foreach (var phone in admins.Select(a => a.PhoneNumber).Distinct())
+        var recipients = admins.Select(a => a.Email).Append(tenant.ContactEmail)
+            .Select(EmailHelper.NormalizeOrNull)
+            .Where(e => e != null && EmailHelper.IsValid(e))
+            .Distinct()
+            .ToList();
+
+        if (recipients.Count == 0)
+        {
+            _logger.LogInformation("Kurs başvurusu sonucu bildirilemedi: e-posta adresi yok. Kurs: {TenantId}", tenant.Id);
+            return;
+        }
+
+        foreach (var email in recipients)
         {
             try
             {
-                if (!await _smsSender.SendAsync(phone, message))
-                    _logger.LogWarning("Kurs başvurusu sonucu SMS ile gönderilemedi. Kurs: {TenantId}", tenant.Id);
+                if (!await _emailSender.SendAsync(email!, subject, body))
+                    _logger.LogWarning("Kurs başvurusu sonucu e-postayla gönderilemedi. Kurs: {TenantId}", tenant.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Kurs başvurusu sonucu SMS ile gönderilemedi. Kurs: {TenantId}", tenant.Id);
+                _logger.LogWarning(ex, "Kurs başvurusu sonucu e-postayla gönderilemedi. Kurs: {TenantId}", tenant.Id);
             }
         }
     }

@@ -8,6 +8,10 @@
     HAFIZ_DB_CONNECTION            -> PostgreSQL bağlantı cümlesi
     HAFIZ_JWT_KEY                  -> oturum imzalama anahtarı; yoksa üretilip .env'e eklenir
                                       (her yüklemede aynı kalmalı, yoksa açık oturumlar düşer)
+  Gerçek gönderim (isteğe bağlı; canlıda zorunlu):
+    HAFIZ_NETGSM_USERCODE, HAFIZ_NETGSM_PASSWORD, HAFIZ_NETGSM_HEADER     -> NetGSM OTP SMS
+    HAFIZ_SMTP_HOST, HAFIZ_SMTP_USER, HAFIZ_SMTP_PASS, HAFIZ_SMTP_FROM    -> e-posta
+    (HAFIZ_SMTP_PORT varsayılan 587, HAFIZ_SMTP_SSL varsayılan true)
   Test ortamında (Staging) varsayılanı olan, gerekirse .env ile değiştirilebilen ayarlar:
     HAFIZ_FTP_API_DIR  = /hafiztakip.api.yasirsharp.com.tr   HAFIZ_API_URL = https://hafiztakip.api.yasirsharp.com.tr
     HAFIZ_FTP_WEB_DIR  = /hafiztakip.yasirsharp.com.tr       HAFIZ_WEB_URL = https://hafiztakip.yasirsharp.com.tr
@@ -95,7 +99,8 @@ $dbName = if ($cfg['HAFIZ_DB_NAME']) { $cfg['HAFIZ_DB_NAME'] } else { 'hafiztaki
 $connectionString = ConvertTo-NpgsqlConnectionString (Get-PgConnectionInfo $cfg['HAFIZ_DB_CONNECTION'] -Database $dbName)
 & (Join-Path $PSScriptRoot 'paket-olustur.ps1') -Ortam $Ortam -Runtime '' `
     -ConnectionString $connectionString -JwtKey $cfg['HAFIZ_JWT_KEY'] `
-    -ApiUrl $cfg['HAFIZ_API_URL'] -WebOrigin $cfg['HAFIZ_WEB_URL']
+    -ApiUrl $cfg['HAFIZ_API_URL'] -WebOrigin $cfg['HAFIZ_WEB_URL'] `
+    -NetGsm (Get-NetGsmSettings $cfg) -Smtp (Get-SmtpSettings $cfg)
 $appDir = Join-Path $PSScriptRoot 'out/app'
 $webPackageDir = Join-Path $PSScriptRoot 'out/web'
 if (-not (Test-Path (Join-Path $appDir 'web.config'))) { throw 'Paket hazırlanamadı (API web.config yok).' }

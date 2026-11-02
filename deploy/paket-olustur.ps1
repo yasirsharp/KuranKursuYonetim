@@ -14,9 +14,11 @@
     database\   -> veritabanını kurmak için SQL betikleri (sırayla: 00, 02, 01)
     BENIOKU.txt -> kurulum adımları
 
-  -Ortam Staging (varsayılan): test sunucusu. SMS gönderilmez, doğrulama kodu sabittir (123456),
-                               giriş sayfasında "test ortamı" ipucu görünür.
-  -Ortam Production          : canlı. Gerçek SMS (NetGSM) ve rastgele kod zorunludur.
+  -Ortam Staging (varsayılan): test sunucusu. NetGSM/SMTP bilgisi verilmezse SMS ve e-posta gönderilmez,
+                               doğrulama kodu sabittir (123456) ve giriş sayfasında "test ortamı" ipucu görünür.
+                               Yalnızca biri verilirse o kanal gerçek gönderir ama kod yine sabittir;
+                               ikisi de verilirse kodlar rastgele olur (canlıdaki gibi).
+  -Ortam Production          : canlı. NetGSM (OTP SMS) ve SMTP bilgileri zorunludur, kodlar rastgeledir.
 
   appsettings.<Ortam>.json pakete rastgele bir JWT anahtarıyla üretilir; bağlantı cümlesini sunucuda
   (veya yüklemeden önce) doldurun. Bu dosya gizlidir: depoya eklenmez, kimseyle paylaşılmaz.
@@ -40,7 +42,11 @@ param(
 
     # Ayrı alan adları: API adresi (web bu adrese bağlanır) ve web sitesinin adresi (CORS'a eklenir)
     [string]$ApiUrl = '',
-    [string]$WebOrigin = ''
+    [string]$WebOrigin = '',
+
+    # Gerçek gönderim (gizli): NetGSM = @{ UserCode; Password; Header }, Smtp = @{ Host; Port; UseSsl; UserName; Password; FromAddress; FromName }
+    [System.Collections.IDictionary]$NetGsm = $null,
+    [System.Collections.IDictionary]$Smtp = $null
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,6 +56,13 @@ $app = Join-Path $out 'app'
 $web = Join-Path $out 'web'
 $splitHosts = [bool]$ApiUrl
 if ($splitHosts -and -not $WebOrigin) { throw '-ApiUrl verildiğinde -WebOrigin de verilmelidir.' }
+$realSms = $null -ne $NetGsm
+$realEmail = $null -ne $Smtp
+if ($Ortam -eq 'Production' -and -not ($realSms -and $realEmail)) {
+    throw 'Canlı paket için NetGSM (OTP SMS) ve SMTP (e-posta) bilgileri gerekli.'
+}
+# Kanallardan biri bile gerçek göndermiyorsa test ortamında kod sabit kalır (yoksa o kanaldan giriş yapılamaz)
+$useFixedCode = $Ortam -eq 'Staging' -and -not ($realSms -and $realEmail)
 $ApiUrl = $ApiUrl.TrimEnd('/')
 $WebOrigin = $WebOrigin.TrimEnd('/')
 
@@ -71,7 +84,7 @@ try {
     if (-not (Test-Path $installed) -or (Get-Item 'package-lock.json').LastWriteTime -gt (Get-Item -Force $installed).LastWriteTime) {
         Invoke-Native 'Web paketleri kuruluyor (npm ci)' { npm ci --no-audit --no-fund }
     }
-    $env:VITE_SHOW_DEV_HINTS = if ($Ortam -eq 'Staging') { 'true' } else { 'false' }
+    $env:VITE_SHOW_DEV_HINTS = if ($useFixedCode) { 'true' } else { 'false' }
     # Ayrı alan adlarında web, API'ye tam adresle bağlanır; tek alan adında aynı adresten (göreli)
     $env:VITE_API_URL = $ApiUrl
     Invoke-Native 'Frontend derleniyor' { npm run build }
@@ -111,11 +124,13 @@ $settings = [ordered]@{
     Logging           = [ordered]@{ LogLevel = [ordered]@{ Default = 'Information'; 'Microsoft.AspNetCore' = 'Warning' } }
 }
 if ($splitHosts) { $settings.Cors = [ordered]@{ AllowedOrigins = @($WebOrigin) } }
-if ($Ortam -eq 'Staging') {
-    $settings.Otp = [ordered]@{ FixedCode = '123456'; ResendCooldownSeconds = 10 }
-    $settings.Sms = [ordered]@{ Provider = 'console' }
-    $settings.Email = [ordered]@{ Provider = 'console' }
-}
+if ($useFixedCode) { $settings.Otp = [ordered]@{ FixedCode = '123456'; ResendCooldownSeconds = 10 } }
+$settings.Sms = if ($realSms) { [ordered]@{ Provider = 'netgsm'; NetGsm = $NetGsm } } else { [ordered]@{ Provider = 'console' } }
+$settings.Email = if ($realEmail) { [ordered]@{ Provider = 'smtp'; Smtp = $Smtp } } else { [ordered]@{ Provider = 'console' } }
+Write-Host ("Gönderim: SMS {0}, e-posta {1}, doğrulama kodu {2}" -f `
+    $(if ($realSms) { 'NetGSM (OTP)' } else { 'yok (loga yazılır)' }),
+    $(if ($realEmail) { "SMTP ($($Smtp['Host']))" } else { 'yok (loga yazılır)' }),
+    $(if ($useFixedCode) { 'sabit 123456' } else { 'rastgele' })) -ForegroundColor Cyan
 $settingsJson = $settings | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText((Join-Path $app "appsettings.$Ortam.json"), $settingsJson, (New-Object Text.UTF8Encoding $false))
 

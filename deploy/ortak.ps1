@@ -5,7 +5,9 @@
 $script:DeploySettingKeys = @(
     'FTP_HOST', 'FTP_USER', 'FTP_PASS',
     'HAFIZ_FTP_API_DIR', 'HAFIZ_FTP_WEB_DIR', 'HAFIZ_API_URL', 'HAFIZ_WEB_URL', 'HAFIZ_FTP_REMOTE_DIR',
-    'HAFIZ_DB_CONNECTION', 'HAFIZ_DB_NAME', 'HAFIZ_JWT_KEY', 'HAFIZ_PLATFORM_ADMIN_PASSWORD'
+    'HAFIZ_DB_CONNECTION', 'HAFIZ_DB_NAME', 'HAFIZ_JWT_KEY', 'HAFIZ_PLATFORM_ADMIN_PASSWORD',
+    'HAFIZ_NETGSM_USERCODE', 'HAFIZ_NETGSM_PASSWORD', 'HAFIZ_NETGSM_HEADER',
+    'HAFIZ_SMTP_HOST', 'HAFIZ_SMTP_PORT', 'HAFIZ_SMTP_SSL', 'HAFIZ_SMTP_USER', 'HAFIZ_SMTP_PASS', 'HAFIZ_SMTP_FROM'
 )
 
 function Read-DotEnv([string]$Path) {
@@ -73,4 +75,36 @@ function ConvertTo-NpgsqlConnectionString($Info) {
         default { 'Prefer' }
     }
     return "Host=$($Info.Host);Port=$($Info.Port);Database=$($Info.Database);Username=$($Info.Username);Password=$($Info.Password);SSL Mode=$ssl;Timeout=30;Command Timeout=60"
+}
+
+<#
+  .env'deki gönderim bilgilerini paket ayarına çevirir. Bir grubun hiçbiri yoksa $null (gönderim yok);
+  bir kısmı varsa eksikleri söyleyen hata verir (yarım ayarla yayın yapılmasın).
+#>
+function Get-NetGsmSettings($cfg) {
+    $keys = 'HAFIZ_NETGSM_USERCODE', 'HAFIZ_NETGSM_PASSWORD', 'HAFIZ_NETGSM_HEADER'
+    $missing = @($keys | Where-Object { [string]::IsNullOrWhiteSpace($cfg[$_]) })
+    if ($missing.Count -eq $keys.Count) { return $null }
+    if ($missing.Count -gt 0) { throw "NetGSM ayarı eksik: $($missing -join ', ')" }
+    # Denendi: NetGSM, şifresinde & veya < olan isteği (doğru kaçışlansa da) 73 koduyla reddediyor
+    if ($cfg['HAFIZ_NETGSM_PASSWORD'] -match '[&<]') {
+        throw "HAFIZ_NETGSM_PASSWORD içinde & veya < var; NetGSM bu karakterli şifreyi reddediyor. NetGSM panelinde API kullanıcısına bu karakterler olmadan yeni şifre verin."
+    }
+    return [ordered]@{ UserCode = $cfg['HAFIZ_NETGSM_USERCODE']; Password = $cfg['HAFIZ_NETGSM_PASSWORD']; Header = $cfg['HAFIZ_NETGSM_HEADER'] }
+}
+
+function Get-SmtpSettings($cfg) {
+    $keys = 'HAFIZ_SMTP_HOST', 'HAFIZ_SMTP_USER', 'HAFIZ_SMTP_PASS', 'HAFIZ_SMTP_FROM'
+    $missing = @($keys | Where-Object { [string]::IsNullOrWhiteSpace($cfg[$_]) })
+    if ($missing.Count -eq $keys.Count) { return $null }
+    if ($missing.Count -gt 0) { throw "SMTP ayarı eksik: $($missing -join ', ')" }
+    return [ordered]@{
+        Host        = $cfg['HAFIZ_SMTP_HOST']
+        Port        = if ($cfg['HAFIZ_SMTP_PORT']) { [int]$cfg['HAFIZ_SMTP_PORT'] } else { 587 }
+        UseSsl      = $cfg['HAFIZ_SMTP_SSL'] -ne 'false'
+        UserName    = $cfg['HAFIZ_SMTP_USER']
+        Password    = $cfg['HAFIZ_SMTP_PASS']
+        FromAddress = $cfg['HAFIZ_SMTP_FROM']
+        FromName    = 'Hafız Takip'
+    }
 }
