@@ -45,10 +45,11 @@ describe('E-posta ile giriş', () => {
     expect(sendEmailCode).toHaveBeenCalledWith('ahmet.hoca@kurs.com');
     expect(await screen.findByText(/adresine gönderilen 6 haneli kodu girin/)).toBeInTheDocument();
 
+    // Altı hane girilince düğmeye basmadan giriş yapılır
     await user.type(screen.getByLabelText('Kodun 1. hanesi'), '123456');
-    await user.click(screen.getByRole('button', { name: /Doğrula|Giriş/ }));
 
     await waitFor(() => expect(verifyEmailCode).toHaveBeenCalledWith({ email: 'ahmet.hoca@kurs.com', code: '123456', tenantId: undefined }));
     expect(await screen.findByText('Ana sayfa')).toBeInTheDocument();
+    expect(verifyEmailCode).toHaveBeenCalledTimes(1);
   });
 });

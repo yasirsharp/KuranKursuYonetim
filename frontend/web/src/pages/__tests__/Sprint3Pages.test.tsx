@@ -72,10 +72,11 @@ describe('Kurs seçimi (OtpVerifyPage)', () => {
     renderAt('/verify-otp', <OtpVerifyPage />, { phoneNumber: '5001112235' });
     const user = userEvent.setup();
     const inputs = screen.getAllByRole('textbox');
+    // Altıncı hane girilince kendiliğinden doğrulanır
     for (let i = 0; i < 6; i++) await user.type(inputs[i]!, String(i + 1));
-    await user.click(screen.getByRole('button', { name: 'Giriş Yap' }));
 
     expect(await screen.findByText('Kurs Seçin')).toBeInTheDocument();
+    expect(verifyOtp).toHaveBeenCalledTimes(1);
     expect(screen.getByText('Onay bekliyor')).toBeInTheDocument();
 
     await user.click(screen.getByText('Merkez Kursu'));
@@ -92,7 +93,6 @@ describe('Kurs seçimi (OtpVerifyPage)', () => {
     const user = userEvent.setup();
     const inputs = screen.getAllByRole('textbox');
     for (let i = 0; i < 6; i++) await user.type(inputs[i]!, '1');
-    await user.click(screen.getByRole('button', { name: 'Giriş Yap' }));
 
     expect(await screen.findByText('Başvuru durumu')).toBeInTheDocument();
   });

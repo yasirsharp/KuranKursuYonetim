@@ -117,6 +117,17 @@ export default function OtpVerifyPage() {
     }
   };
 
+  // Altı hane girilince (yazarak, yapıştırarak veya telefonun SMS/e-posta önerisiyle) kendiliğinden giriş yapılır;
+  // aynı kod hata verdiyse tekrar tekrar gönderilmez
+  const autoSubmittedCode = useRef('');
+  const code = otp.join('');
+  useEffect(() => {
+    if (code.length !== OTP_LENGTH || loading || tenantOptions || autoSubmittedCode.current === code) return;
+    autoSubmittedCode.current = code;
+    verify();
+    // verify her render'da yeniden oluşur; yalnızca kod tamamlandığında tetiklenmeli
+  }, [code]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.join('').length !== OTP_LENGTH) {
