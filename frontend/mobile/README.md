@@ -18,7 +18,15 @@ Her `frontend/mobile` değişikliğinde GitHub Actions'taki **Mobil APK** iş ak
 
 Test sunucusunda e-posta gönderilmez; giriş kodu **123456**. Deneme hesapları `database/01_seed_data.sql` içinde (ör. `ahmet.hoca@merkezkurs.com`, `mudur@merkezkurs.com`).
 
-Test APK'ları debug anahtarıyla imzalanır; yeni APK kurulmazsa önce eski uygulamayı kaldırın.
+### İmza anahtarı
+
+Yeni sürümün eskisinin üstüne kurulabilmesi için her APK aynı anahtarla imzalanmalıdır. Anahtar bir kez üretilir:
+
+```powershell
+pwsh ./frontend/mobile/imza-anahtari-olustur.ps1
+```
+
+Betik anahtarı depo dışına (Belgeler\HafizTakip-imza) yazar, var olanın üzerine yazmaz ve GitHub'a eklenecek iki gizli bilgiyi sırayla panoya kopyalar: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` (Settings → Secrets and variables → Actions). Klasörü yedekleyin: anahtar kaybolursa uygulamayı kuran herkesin silip yeniden kurması gerekir. Gizli bilgiler yoksa iş akışı uyarı verip geçici (debug) anahtarla imzalar. Her derlemenin imza parmak izi `mobil-test` sürüm notunda yazar.
 
 ## Geliştirme
 

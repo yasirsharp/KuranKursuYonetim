@@ -54,6 +54,28 @@ jobs:
       - name: Testler
         run: flutter test --concurrency=1
 
+      - name: İmza anahtarı
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD tanımlı değil; APK geçici (debug) anahtarla imzalanacak ve eski sürümün üstüne kurulamayacak. Bkz. frontend/mobile/imza-anahtari-olustur.ps1"
+            exit 0
+          fi
+          KS="$RUNNER_TEMP/hafiz-takip-imza.p12"
+          printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$KS"
+          ALIAS=$(keytool -list -keystore "$KS" -storetype pkcs12 -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep PrivateKeyEntry | head -1 | cut -d, -f1)
+          if [ -z "$ALIAS" ]; then
+            echo "::error::İmza anahtarı açılamadı: ANDROID_KEYSTORE_PASSWORD yanlış ya da ANDROID_KEYSTORE_BASE64 eksik kopyalanmış olabilir."
+            exit 1
+          fi
+          {
+            echo "ANDROID_KEYSTORE_PATH=$KS"
+            echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "ANDROID_KEY_ALIAS=$ALIAS"
+          } >> "$GITHUB_ENV"
+
       - name: APK
         run: >
           flutter build apk --release
@@ -61,6 +83,14 @@ jobs:
           --dart-define=API_BASE_URL=$API_BASE_URL
           --build-name=0.1.${{ github.run_number }}
           --build-number=${{ github.run_number }}
+
+      - name: İmzayı doğrula
+        id: signer
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          CERT_SHA=$("$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | grep "certificate SHA-256" | head -1 | awk '{print $NF}')
+          echo "İmza sertifikası SHA-256: $CERT_SHA"
+          echo "sha=${CERT_SHA:0:16}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -73,10 +103,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_NO: ${{ github.run_number }}
           SHA: ${{ github.sha }}
+          SIGNER: ${{ steps.signer.outputs.sha }}
         run: |
           cp build/app/outputs/flutter-apk/app-release.apk hafiz-takip.apk
           if ! gh release view mobil-test >/dev/null 2>&1; then
             gh release create mobil-test --prerelease --title "Hafız Takip — Android test sürümü" --notes "İlk yayın"
           fi
           gh release upload mobil-test hafiz-takip.apk --clobber
-          gh release edit mobil-test --notes "Sürüm 0.1.$RUN_NO — $(date -u +%Y-%m-%d) — commit ${SHA::7}. Test sunucusuna bağlıdır. İndirme ve kurulum: https://hafiztakip.yasirsharp.com.tr/mobil"
+          gh release edit mobil-test --notes "Sürüm 0.1.$RUN_NO — $(date -u +%Y-%m-%d) — commit ${SHA::7} — imza ${SIGNER}. Test sunucusuna bağlıdır. İndirme ve kurulum: https://hafiztakip.yasirsharp.com.tr/mobil"

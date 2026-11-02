@@ -21,3 +21,10 @@ deploy/out/
 
 # Yerel gizli ayarlar (FTP, veritabanı, SMTP şifreleri) — depoya girmez
 /.env
+
+# Android imza anahtarı (depoya asla girmez; bkz. frontend/mobile/imza-anahtari-olustur.ps1)
+*.p12
+*.pfx
+*.jks
+*.keystore
+anahtar-base64.txt

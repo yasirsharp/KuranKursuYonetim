@@ -29,12 +29,26 @@ android {
         versionName = flutter.versionName
     }
 
+    // Kalıcı imza anahtarı: CI'da GitHub gizli bilgilerinden çözülür (bkz. .github/workflows/mobile-apk.yml,
+    // anahtar frontend/mobile/imza-anahtari-olustur.ps1 ile üretilir). Aynı anahtarla imzalanan yeni sürüm
+    // eskisinin üstüne kurulabilir. Anahtar yoksa (yerel derleme) debug anahtarı kullanılır.
+    val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    signingConfigs {
+        if (releaseKeystorePath != null) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storeType = "pkcs12"
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                // PKCS12'de anahtar şifresi depo şifresiyle aynıdır
+                keyPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Mağaza yayını öncesi kalıcı imza anahtarı (GitHub secret) eklenecek.
-            // Şimdilik test APK'ları debug anahtarıyla imzalanır; her derlemenin anahtarı farklı olabileceği için
-            // yeni APK kurulmadan önce eskisinin kaldırılması gerekebilir.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (releaseKeystorePath != null) "release" else "debug")
         }
     }
 }
