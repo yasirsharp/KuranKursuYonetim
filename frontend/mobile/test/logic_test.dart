@@ -60,6 +60,15 @@ void main() {
     expect(isValidCode('12345a'), isFalse);
   });
 
+  test('cep numarası sunucunun beklediği 10 haneye indirilir', () {
+    expect(normalizePhone('0532 111 22 33'), '5321112233');
+    expect(normalizePhone('+90 532 111 22 33'), '5321112233');
+    expect(normalizePhone('5321112233'), '5321112233');
+    expect(normalizePhone('0212 111 22 33'), isNull, reason: 'sabit hat');
+    expect(normalizePhone('0532 111 22'), isNull);
+    expect(formatPhone('5321112233'), '0532 111 22 33');
+  });
+
   group('yönlendirme', () {
     test('oturum yoksa giriş ekranı, giriş ekranındayken yönlendirme yok', () {
       const auth = AuthState(AuthStatus.signedOut);

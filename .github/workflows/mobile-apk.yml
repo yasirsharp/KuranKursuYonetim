@@ -14,6 +14,10 @@ on:
         description: 'API adresi'
         required: false
         default: 'https://hafiztakip.api.yasirsharp.com.tr'
+      show_test_hints:
+        description: 'Giriş ekranında "kod 123456" test notu (sunucuda SMS/e-posta gerçek gönderiliyorsa false)'
+        required: false
+        default: 'true'
 
 permissions:
   contents: write   # mobil-test sürümüne APK yüklemek için
@@ -31,6 +35,8 @@ jobs:
         working-directory: frontend/mobile
     env:
       API_BASE_URL: ${{ github.event.inputs.api_base_url || 'https://hafiztakip.api.yasirsharp.com.tr' }}
+      # Push'ta repo değişkeni MOBILE_SHOW_TEST_HINTS (Settings → Variables) belirler; yoksa true
+      SHOW_TEST_HINTS: ${{ github.event.inputs.show_test_hints || vars.MOBILE_SHOW_TEST_HINTS || 'true' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -83,6 +89,7 @@ jobs:
           flutter build apk --release
           --target-platform android-arm,android-arm64,android-x64
           --dart-define=API_BASE_URL=$API_BASE_URL
+          --dart-define=SHOW_TEST_HINTS=$SHOW_TEST_HINTS
           --build-name=0.1.${{ github.run_number }}
           --build-number=${{ github.run_number }}
 

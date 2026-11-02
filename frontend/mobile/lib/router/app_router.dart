@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants/labels.dart';
+import '../data/models/session_model.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../presentation/providers/onboarding_provider.dart';
 import '../presentation/screens/attendance/attendance_screen.dart';
@@ -67,7 +68,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (_, _) => const LoginScreen(),
         routes: [
-          GoRoute(path: 'code', builder: (_, state) => CodeScreen(email: state.extra as String? ?? '')),
+          GoRoute(path: 'code', builder: (_, state) => state.extra is LoginTarget
+                ? CodeScreen(target: state.extra as LoginTarget)
+                : const LoginScreen()),
         ],
       ),
       GoRoute(

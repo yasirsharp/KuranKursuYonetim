@@ -11,11 +11,11 @@ import '../../../data/models/session_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_header.dart';
 
-/// 2. adım: e-postaya gelen 6 haneli kod; adres birden fazla kursta kayıtlıysa kurs seçimi.
+/// 2. adım: SMS'le veya e-postayla gelen 6 haneli kod; numara/adres birden fazla kursta kayıtlıysa kurs seçimi.
 class CodeScreen extends ConsumerStatefulWidget {
-  const CodeScreen({super.key, required this.email});
+  const CodeScreen({super.key, required this.target});
 
-  final String email;
+  final LoginTarget target;
 
   @override
   ConsumerState<CodeScreen> createState() => _CodeScreenState();
@@ -47,7 +47,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
     try {
       final result = await ref
           .read(authRepositoryProvider)
-          .verifyEmailCode(email: widget.email, code: code, tenantId: tenantId);
+          .verifyCode(widget.target, code: code, tenantId: tenantId);
       if (result.requiresTenantSelection) {
         setState(() => _tenantOptions = result.tenantOptions);
         return;
@@ -78,7 +78,11 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
   }
 
   List<Widget> _buildCodeStep() => [
-        BrandHeader(subtitle: '${widget.email} adresine gönderilen 6 haneli kodu girin'),
+        BrandHeader(
+          subtitle: widget.target.isPhone
+              ? '${formatPhone(widget.target.value)} numarasına SMS ile gönderilen 6 haneli kodu girin'
+              : '${widget.target.value} adresine gönderilen 6 haneli kodu girin',
+        ),
         const SizedBox(height: 32),
         TextField(
           controller: _codeController,
@@ -99,7 +103,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
       ];
 
   List<Widget> _buildTenantStep(List<TenantOption> options) => [
-        const BrandHeader(subtitle: 'Bu adres birden fazla kursta kayıtlı. Giriş yapacağınız kursu seçin.'),
+        BrandHeader(subtitle: widget.target.isPhone ? 'Bu numara birden fazla kursta kayıtlı. Giriş yapacağınız kursu seçin.' : 'Bu adres birden fazla kursta kayıtlı. Giriş yapacağınız kursu seçin.'),
         const SizedBox(height: 24),
         if (_error != null)
           Padding(

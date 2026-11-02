@@ -24,9 +24,22 @@ Widget wrap(Widget child, {List<Override> overrides = const []}) => ProviderScop
 void main() {
   setUpAll(() => initializeDateFormatting('tr_TR'));
 
-  testWidgets('giriş: geçersiz e-postada uyarı verir', (tester) async {
+  testWidgets('giriş: telefon varsayılan, geçersiz numarada uyarı verir', (tester) async {
     await tester.pumpWidget(wrap(const LoginScreen()));
 
+    expect(find.text('Cep telefonu'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '0212 111 22 33');
+    await tester.tap(find.text('Giriş kodu gönder'));
+    await tester.pump();
+
+    expect(find.text('Cep telefonu numaranızı 05XX XXX XX XX şeklinde girin.'), findsOneWidget);
+  });
+
+  testWidgets('giriş: e-postaya geçince geçersiz adreste uyarı verir', (tester) async {
+    await tester.pumpWidget(wrap(const LoginScreen()));
+
+    await tester.tap(find.text('E-posta'));
+    await tester.pump();
     await tester.enterText(find.byType(TextField), 'hoca@kurs');
     await tester.tap(find.text('Giriş kodu gönder'));
     await tester.pump();

@@ -1,19 +1,31 @@
 import '../../core/network/api_client.dart';
 import '../models/session_model.dart';
 
-/// E-posta + tek kullanımlık kod ile giriş (backend: /api/auth/send-email-code, verify-email-code).
+/// Tek kullanımlık kodla giriş: telefon (SMS; /api/auth/send-otp, verify-otp)
+/// veya e-posta (/api/auth/send-email-code, verify-email-code).
 class AuthRepository {
   AuthRepository(this._api);
 
   final ApiClient _api;
 
+  Future<void> sendCode(LoginTarget target) => target.isPhone
+      ? _api.postVoid('/api/auth/send-otp', body: {'phoneNumber': target.value})
+      : sendEmailCode(target.value);
+
+  Future<LoginResult> verifyCode(LoginTarget target, {required String code, String? tenantId}) => target.isPhone
+      ? _verify('/api/auth/verify-otp', {'phoneNumber': target.value, 'code': code, 'tenantId': ?tenantId})
+      : verifyEmailCode(email: target.value, code: code, tenantId: tenantId);
+
   Future<void> sendEmailCode(String email) =>
       _api.postVoid('/api/auth/send-email-code', body: {'email': email.trim()});
 
-  Future<LoginResult> verifyEmailCode({required String email, required String code, String? tenantId}) {
+  Future<LoginResult> verifyEmailCode({required String email, required String code, String? tenantId}) =>
+      _verify('/api/auth/verify-email-code', {'email': email.trim(), 'code': code, 'tenantId': ?tenantId});
+
+  Future<LoginResult> _verify(String path, Map<String, Object?> body) {
     return _api.post(
-      '/api/auth/verify-email-code',
-      body: {'email': email.trim(), 'code': code, 'tenantId': ?tenantId},
+      path,
+      body: body,
       parse: (data) {
         final json = data as Map<String, dynamic>;
         if (json['requiresTenantSelection'] == true) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,10 +8,11 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/models/session_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_header.dart';
 
-/// 1. adım: kayıtlı e-posta adresine giriş kodu istenir.
+/// 1. adım: kayıtlı cep telefonuna (SMS) veya e-posta adresine giriş kodu istenir.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key, this.notice});
 
@@ -22,21 +24,35 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
+  bool _byPhone = true;
   bool _sending = false;
   String? _error;
 
   @override
   void dispose() {
+    _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
   }
 
   Future<void> _sendCode() async {
-    final email = _emailController.text.trim();
-    if (!isValidEmail(email)) {
-      setState(() => _error = 'Geçerli bir e-posta adresi girin.');
-      return;
+    final LoginTarget target;
+    if (_byPhone) {
+      final phone = normalizePhone(_phoneController.text);
+      if (phone == null) {
+        setState(() => _error = 'Cep telefonu numaranızı 05XX XXX XX XX şeklinde girin.');
+        return;
+      }
+      target = LoginTarget.phone(phone);
+    } else {
+      final email = _emailController.text.trim();
+      if (!isValidEmail(email)) {
+        setState(() => _error = 'Geçerli bir e-posta adresi girin.');
+        return;
+      }
+      target = LoginTarget.email(email);
     }
 
     setState(() {
@@ -44,8 +60,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await ref.read(authRepositoryProvider).sendEmailCode(email);
-      if (mounted) context.push('/login/code', extra: email);
+      await ref.read(authRepositoryProvider).sendCode(target);
+      if (mounted) context.push('/login/code', extra: target);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } finally {
@@ -63,21 +79,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const BrandHeader(subtitle: 'Kayıtlı e-posta adresinizle giriş yapın'),
+                BrandHeader(
+                  subtitle: _byPhone ? 'Kayıtlı cep telefonunuzla giriş yapın' : 'Kayıtlı e-posta adresinizle giriş yapın',
+                ),
                 const SizedBox(height: 32),
                 if (widget.notice != null) ...[
                   _Notice(text: widget.notice!),
                   const SizedBox(height: AppSpacing.lg),
                 ],
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  autofillHints: const [AutofillHints.email],
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _sendCode(),
-                  decoration: InputDecoration(labelText: 'E-posta', hintText: 'ornek@kurs.com', errorText: _error),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: true, label: Text('Telefon'), icon: Icon(Icons.phone_iphone)),
+                    ButtonSegment(value: false, label: Text('E-posta'), icon: Icon(Icons.mail_outline)),
+                  ],
+                  selected: {_byPhone},
+                  showSelectedIcon: false,
+                  onSelectionChanged: _sending
+                      ? null
+                      : (value) => setState(() {
+                            _byPhone = value.first;
+                            _error = null;
+                          }),
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                if (_byPhone)
+                  TextField(
+                    key: const ValueKey('phone'),
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    autofillHints: const [AutofillHints.telephoneNumber],
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9 +]')), LengthLimitingTextInputFormatter(17)],
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendCode(),
+                    style: const TextStyle(fontSize: 20, letterSpacing: 1),
+                    decoration: InputDecoration(labelText: 'Cep telefonu', hintText: '05XX XXX XX XX', errorText: _error),
+                  )
+                else
+                  TextField(
+                    key: const ValueKey('email'),
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    autofillHints: const [AutofillHints.email],
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendCode(),
+                    decoration: InputDecoration(labelText: 'E-posta', hintText: 'ornek@kurs.com', errorText: _error),
+                  ),
                 const SizedBox(height: AppSpacing.lg),
                 FilledButton(
                   onPressed: _sending ? null : _sendCode,
@@ -86,7 +133,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 if (ApiConstants.showTestHints) ...[
                   const SizedBox(height: AppSpacing.lg),
                   const Text(
-                    'Test sunucusu: e-posta gönderilmez, giriş kodu 123456.',
+                    'Test sunucusu: giriş kodu 123456.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: AppColors.muted),
                   ),

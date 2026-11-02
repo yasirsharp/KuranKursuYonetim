@@ -87,3 +87,12 @@ class LoginResult {
 
   bool get requiresTenantSelection => session == null;
 }
+
+/// Kodun gönderildiği yer: normalize telefon (5XXXXXXXXX) veya e-posta.
+class LoginTarget {
+  const LoginTarget.phone(this.value) : isPhone = true;
+  const LoginTarget.email(this.value) : isPhone = false;
+
+  final bool isPhone;
+  final String value;
+}
