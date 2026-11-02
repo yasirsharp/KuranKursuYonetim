@@ -25,13 +25,16 @@
 .EXAMPLE
   .\deploy\sunucuya-yukle.ps1               # test ortamı (Staging), sabit doğrulama kodu
   .\deploy\sunucuya-yukle.ps1 -Zip          # .dll'ler FTP ile yüklenemiyorsa: ZIP + Plesk'te aç
+  .\deploy\sunucuya-yukle.ps1 -Zip -SadeceWeb   # API değişmediyse yalnızca web'i yükle
   .\deploy\sunucuya-yukle.ps1 -SkipUpload   # yalnızca paketi hazırla
 #>
 param(
     [ValidateSet('Staging', 'Production')]
     [string]$Ortam = 'Staging',
     [switch]$SkipUpload,
-    [switch]$Zip
+    [switch]$Zip,
+    # API'ye dokunmadan yalnızca web sitesini yükler (API kodu değişmediyse)
+    [switch]$SadeceWeb
 )
 
 $ErrorActionPreference = 'Stop'
@@ -199,12 +202,14 @@ if ($Zip) {
         Remove-FtpFile "$remoteDir/$zipName"
     }
 
-    New-FtpDirectory $apiDir
-    Send-FtpFile $offline "$apiDir/app_offline.htm"
-    Write-Host "API bakım modunda (dosyalar serbest kalsın diye)." -ForegroundColor Yellow
-    Send-ZipStep $appDir 'api.zip' $apiDir 'API'
-    Remove-FtpFile "$apiDir/app_offline.htm"
-    Write-Host "API güncellendi, bakım modu kapandı: $($cfg['HAFIZ_API_URL'])" -ForegroundColor Green
+    if (-not $SadeceWeb) {
+        New-FtpDirectory $apiDir
+        Send-FtpFile $offline "$apiDir/app_offline.htm"
+        Write-Host "API bakım modunda (dosyalar serbest kalsın diye)." -ForegroundColor Yellow
+        Send-ZipStep $appDir 'api.zip' $apiDir 'API'
+        Remove-FtpFile "$apiDir/app_offline.htm"
+        Write-Host "API güncellendi, bakım modu kapandı: $($cfg['HAFIZ_API_URL'])" -ForegroundColor Green
+    }
 
     Send-ZipStep $webPackageDir 'web.zip' $webDir 'Web'
     Write-Host "Web güncellendi: $($cfg['HAFIZ_WEB_URL'])" -ForegroundColor Green
@@ -212,6 +217,11 @@ if ($Zip) {
 }
 
 # 4b) API: bakım modu -> dosyalar -> bakım modundan çık
+if ($SadeceWeb) {
+    $webCount = Publish-FtpFolder $webPackageDir $webDir -LastFiles @('index.html', 'web.config')
+    Write-Host "Web yüklendi: $webCount dosya -> $webDir ($($cfg['HAFIZ_WEB_URL']))" -ForegroundColor Green
+    return
+}
 New-FtpDirectory $apiDir
 Send-FtpFile $offline "$apiDir/app_offline.htm"
 Write-Host "API bakım modunda; uygulamanın durması bekleniyor (20 sn)..." -ForegroundColor Yellow
