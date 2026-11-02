@@ -65,7 +65,12 @@ New-Item -ItemType Directory -Path $app | Out-Null
 # 1) Frontend
 Push-Location (Join-Path $root 'frontend/web')
 try {
-    if (-not (Test-Path 'node_modules')) { Invoke-Native 'npm ci' { npm ci } }
+    # Paket listesi (package-lock.json) son kurulumdan sonra değiştiyse (ör. git pull ile yeni paket geldiyse) yeniden kur.
+    # npm, kurulumda node_modules/.package-lock.json dosyasını yazar; onun tarihine bakılır.
+    $installed = 'node_modules/.package-lock.json'
+    if (-not (Test-Path $installed) -or (Get-Item 'package-lock.json').LastWriteTime -gt (Get-Item -Force $installed).LastWriteTime) {
+        Invoke-Native 'Web paketleri kuruluyor (npm ci)' { npm ci --no-audit --no-fund }
+    }
     $env:VITE_SHOW_DEV_HINTS = if ($Ortam -eq 'Staging') { 'true' } else { 'false' }
     # Ayrı alan adlarında web, API'ye tam adresle bağlanır; tek alan adında aynı adresten (göreli)
     $env:VITE_API_URL = $ApiUrl
