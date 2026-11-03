@@ -11,7 +11,8 @@ public enum OtpPurpose
 {
     Login,
     CourseApplication,
-    EmailLogin
+    EmailLogin,
+    Invitation
 }
 
 public enum OtpVerification

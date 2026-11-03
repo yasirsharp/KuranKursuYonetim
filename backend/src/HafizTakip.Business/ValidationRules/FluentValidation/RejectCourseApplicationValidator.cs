@@ -8,7 +8,7 @@ public class RejectCourseApplicationValidator : AbstractValidator<RejectCourseAp
     public RejectCourseApplicationValidator()
     {
         RuleFor(x => x.Reason)
-            .NotEmpty().WithMessage("Ret gerekçesi boş olamaz; başvuru sahibine SMS ile iletilir.")
+            .NotEmpty().WithMessage("Ret gerekçesi boş olamaz; başvuru sahibine e-posta ile iletilir.")
             .MinimumLength(5).MaximumLength(500);
     }
 }

@@ -32,10 +32,13 @@ public class AuthService : IAuthService
     private const string GenericSendMessage = "Telefon numarası kayıtlıysa doğrulama kodu gönderildi.";
     private const string GenericEmailSendMessage = "E-posta adresi kayıtlıysa doğrulama kodu gönderildi.";
     private const string InvalidCodeMessage = "Doğrulama kodu hatalı veya süresi dolmuş.";
+    private const string PendingJoinMessage =
+        "Kursa katılım isteğiniz kurs yöneticisinin onayını bekliyor. Onaylandığında bu numarayla giriş yapabilirsiniz.";
     private const string InvalidSessionMessage = "Oturum geçersiz veya süresi dolmuş. Lütfen tekrar giriş yapın.";
 
     private readonly IUserDal _userDal;
     private readonly ITenantDal _tenantDal;
+    private readonly IJoinRequestDal _joinRequestDal;
     private readonly IRefreshTokenDal _refreshTokenDal;
     private readonly ITokenHelper _tokenHelper;
     private readonly ISmsSender _smsSender;
@@ -47,6 +50,7 @@ public class AuthService : IAuthService
     public AuthService(
         IUserDal userDal,
         ITenantDal tenantDal,
+        IJoinRequestDal joinRequestDal,
         IRefreshTokenDal refreshTokenDal,
         ITokenHelper tokenHelper,
         IMemoryCache cache,
@@ -58,6 +62,7 @@ public class AuthService : IAuthService
     {
         _userDal = userDal;
         _tenantDal = tenantDal;
+        _joinRequestDal = joinRequestDal;
         _refreshTokenDal = refreshTokenDal;
         _tokenHelper = tokenHelper;
         _smsSender = smsSender;
@@ -83,6 +88,9 @@ public class AuthService : IAuthService
         var candidates = await _userDal.GetLoginCandidatesByPhoneAsync(phone);
         if (candidates.Count == 0)
         {
+            // Davetle katılıp onay bekleyen kişi "kod hatalı" ile karşılaşmasın (kendi numarasını SMS ile doğrulamıştır)
+            if (await _joinRequestDal.HasPendingAcrossTenantsAsync(phone))
+                return new ErrorResult(PendingJoinMessage, ResultErrorType.Conflict);
             return new SuccessResult(GenericSendMessage);
         }
 

@@ -94,7 +94,7 @@ public class CourseApplicationManager : ICourseApplicationService
         if (await _userDal.HasPendingApplicationAsync(phone))
         {
             return new ErrorDataResult<TokenResponseDto>(
-                "Bu telefon numarasıyla onay bekleyen bir kurs başvurunuz zaten var. Sonuç SMS ile bildirilecek.",
+                "Bu telefon numarasıyla onay bekleyen bir kurs başvurunuz zaten var. Sonuç e-posta ile bildirilecek.",
                 ResultErrorType.Conflict);
         }
 
@@ -140,7 +140,7 @@ public class CourseApplicationManager : ICourseApplicationService
 
             var session = await _authService.CreateSessionAsync(admin);
             return new SuccessDataResult<TokenResponseDto>(session,
-                "Kurs başvurunuz alındı. Platform yöneticisi onayladığında SMS ile bilgilendirileceksiniz.");
+                "Kurs başvurunuz alındı. Platform yöneticisi onayladığında e-posta ile bilgilendirileceksiniz.");
         });
 
         if (result.Success) _otp.Consume(OtpPurpose.CourseApplication, phone);

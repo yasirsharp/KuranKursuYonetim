@@ -43,6 +43,8 @@ public class HafizTakipDbContext : DbContext
     public DbSet<TenantSetting> TenantSettings { get; set; }
     public DbSet<AcademicTerm> AcademicTerms { get; set; }
     public DbSet<CalendarEvent> CalendarEvents { get; set; }
+    public DbSet<Invitation> Invitations { get; set; }
+    public DbSet<JoinRequest> JoinRequests { get; set; }
 
     // Kur'an referans verisi (platform seviyesi, salt okunur)
     public DbSet<QuranSurah> QuranSurahs { get; set; }

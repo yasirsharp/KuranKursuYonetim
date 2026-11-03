@@ -140,7 +140,7 @@ export default function ApplicationStatusPage() {
                 <div className="status-hero-icon" style={{ background: 'var(--color-gold-pale)' }}>⏳</div>
                 <h2 className="auth-form-title">Kursunuz onay bekliyor</h2>
                 <p className="auth-form-hint">
-                  Başvurunuz platform yöneticisine iletildi. Onaylandığında SMS ile bilgilendirileceksiniz;
+                  Başvurunuz platform yöneticisine iletildi. Onaylandığında e-posta ile bilgilendirileceksiniz;
                   bu sayfa da kendiliğinden güncellenir.
                 </p>
               </>

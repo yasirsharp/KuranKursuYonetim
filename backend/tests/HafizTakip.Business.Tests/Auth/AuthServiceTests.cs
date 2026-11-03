@@ -20,6 +20,7 @@ public class AuthServiceTests
 
     private readonly Mock<IUserDal> _userDal = new();
     private readonly Mock<ITenantDal> _tenantDal = new();
+    private readonly Mock<IJoinRequestDal> _joinRequestDal = new();
     private readonly Mock<IRefreshTokenDal> _refreshTokenDal = new();
     private readonly Mock<ITokenHelper> _tokenHelper = new();
     private readonly Mock<ISmsSender> _smsSender = new();
@@ -52,7 +53,7 @@ public class AuthServiceTests
     }
 
     private AuthService CreateService() => new(
-        _userDal.Object, _tenantDal.Object, _refreshTokenDal.Object, _tokenHelper.Object,
+        _userDal.Object, _tenantDal.Object, _joinRequestDal.Object, _refreshTokenDal.Object, _tokenHelper.Object,
         _cache, _smsSender.Object, _emailSender.Object, _otpOptions, new TokenOptions { RefreshTokenExpirationDays = 30 }, TimeProvider.System);
 
     private User RegisterUser(Guid tenantId, string role = "head_teacher")
@@ -71,6 +72,18 @@ public class AuthServiceTests
         var result = await CreateService().SendOtpAsync(new SendOtpDto { PhoneNumber = "0532 111 22 33" });
 
         result.Success.Should().BeTrue();
+        _smsSender.Verify(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SendOtp_PhoneWithPendingJoinRequest_ShouldSayItAwaitsApproval()
+    {
+        _joinRequestDal.Setup(d => d.HasPendingAcrossTenantsAsync(Phone)).ReturnsAsync(true);
+
+        var result = await CreateService().SendOtpAsync(new SendOtpDto { PhoneNumber = Phone });
+
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("onayını bekliyor");
         _smsSender.Verify(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

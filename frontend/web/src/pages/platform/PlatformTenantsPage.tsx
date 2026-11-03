@@ -71,7 +71,7 @@ export default function PlatformTenantsPage() {
     setBusyId(rejecting.id);
     try {
       await rejectTenant(rejecting.id, reason.trim());
-      setNotice(`"${rejecting.name}" reddedildi; gerekçe kurs müdürüne SMS ile iletildi.`);
+      setNotice(`"${rejecting.name}" reddedildi; gerekçe kurs müdürüne e-posta ile iletildi.`);
       setRejecting(null);
       setReason('');
       await load();
@@ -158,7 +158,7 @@ export default function PlatformTenantsPage() {
           <form className="modal-sheet" onClick={(e) => e.stopPropagation()} onSubmit={handleReject}>
             <h2 className="form-section-title">Başvuruyu reddet</h2>
             <p className="page-subtitle">
-              <strong>{rejecting.name}</strong> — gerekçe kurs müdürüne SMS ile gönderilir ve başvuru ekranında görünür.
+              <strong>{rejecting.name}</strong> — gerekçe kurs müdürüne e-posta ile gönderilir ve başvuru ekranında görünür.
             </p>
             <textarea className="form-textarea" placeholder="Ör. Adres bilgisi eksik, lütfen tam adresi ekleyin."
               value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} autoFocus aria-label="Ret gerekçesi" />

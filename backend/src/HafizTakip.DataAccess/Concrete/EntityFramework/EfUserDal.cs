@@ -60,4 +60,11 @@ public class EfUserDal : EfEntityRepositoryBase<User, HafizTakipDbContext>, IUse
             .Where(u => u.PhoneNumber == normalizedPhone && u.Role == UserRole.TenantAdmin && !u.IsDeleted)
             .AnyAsync(u => Context.Tenants.Any(t => t.Id == u.TenantId && !t.IsDeleted && t.Status == TenantStatus.Pending));
     }
+
+    public async Task<User?> GetByPhoneIncludingDeletedAsync(Guid tenantId, string normalizedPhone)
+    {
+        return await Context.Users
+            .IgnoreQueryFilters()
+            .SingleOrDefaultAsync(u => u.TenantId == tenantId && u.PhoneNumber == normalizedPhone);
+    }
 }

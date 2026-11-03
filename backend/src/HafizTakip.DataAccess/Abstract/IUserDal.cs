@@ -22,4 +22,10 @@ public interface IUserDal : IEntityRepository<User>
 
     /// <summary>Bu telefonla açılmış ve hâlâ onay bekleyen bir kurs başvurusu var mı?</summary>
     Task<bool> HasPendingApplicationAsync(string normalizedPhone);
+
+    /// <summary>
+    /// Davet onayı için: kursta bu numaraya ait kullanıcıyı silinmiş olsa da getirir
+    /// (users(tenant_id, phone_number) benzersizliği silinmiş kayıtları da kapsar; silinmiş kayıt yeniden etkinleştirilir).
+    /// </summary>
+    Task<User?> GetByPhoneIncludingDeletedAsync(Guid tenantId, string normalizedPhone);
 }
