@@ -105,7 +105,17 @@ void main() {
       expect(authRedirect(auth, '/welcome', onboardingSeen: true), '/login');
     });
 
-        test('onay bekleyen kurs ve veli rolü engellenir', () {
+    test('onay bekleyen veya reddedilen kursun müdürü başvuru durumuna gider; onaylanınca uygulamaya', () {
+      for (final status in ['pending', 'rejected']) {
+        final auth = AuthState(AuthStatus.signedIn, session(role: 'tenant_admin', tenantStatus: status));
+        expect(authRedirect(auth, '/login/apply'), '/application');
+        expect(authRedirect(auth, '/application'), isNull);
+      }
+      expect(authRedirect(AuthState(AuthStatus.signedIn, session(role: 'tenant_admin')), '/application'), '/students');
+      expect(authRedirect(const AuthState(AuthStatus.signedOut), '/login/apply'), isNull);
+    });
+
+    test('onay bekleyen kurs ve veli rolü engellenir', () {
       expect(authRedirect(AuthState(AuthStatus.signedIn, session(tenantStatus: 'pending')), '/students'), '/blocked');
       expect(authRedirect(AuthState(AuthStatus.signedIn, session(role: 'parent')), '/students'), '/blocked');
       expect(blockedReason(AuthState(AuthStatus.signedIn, session(tenantStatus: 'pending'))), contains('onay bekliyor'));

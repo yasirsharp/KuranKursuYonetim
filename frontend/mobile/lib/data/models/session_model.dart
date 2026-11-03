@@ -47,6 +47,21 @@ class SessionModel {
         'lastName': lastName,
       };
 
+  /// Kurs başvurusu onaylanınca/reddedilince aynı oturum yeni durumla.
+  SessionModel withTenantStatus(String status) => SessionModel(
+        token: token,
+        refreshToken: refreshToken,
+        userId: userId,
+        tenantId: tenantId,
+        tenantStatus: status,
+        role: role,
+        firstName: firstName,
+        lastName: lastName,
+      );
+
+  /// Onay bekleyen (pending) veya reddedilen (rejected) kursun yöneticisi yalnızca başvuru durumunu görür.
+  bool get isApplicationOnly => tenantStatus == 'pending' || tenantStatus == 'rejected';
+
   /// Yenilenen token'larla aynı oturum.
   SessionModel withTokens(String token, String refreshToken) => SessionModel(
         token: token,

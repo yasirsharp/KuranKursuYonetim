@@ -162,7 +162,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: _sending ? null : _sendCode,
                   child: Text(_sending ? 'Gönderiliyor...' : 'Giriş kodu gönder'),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.xl),
+                const Divider(),
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: _sending ? null : () => context.push('/login/apply'),
+                  icon: const Icon(Icons.add_business),
+                  label: const Text('Kursumu kaydet (kurs müdürü)'),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 TextButton.icon(
                   onPressed: _sending ? null : _enterInvitationCode,
                   icon: const Icon(Icons.qr_code_2),

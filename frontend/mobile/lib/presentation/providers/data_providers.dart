@@ -4,6 +4,7 @@ import '../../core/utils/date_utils.dart';
 import '../../data/models/invitation_model.dart';
 import '../../data/models/lesson_model.dart';
 import '../../data/models/student_model.dart';
+import '../../data/repositories/course_application_repository.dart';
 import '../../data/repositories/invitation_repository.dart';
 import '../../data/repositories/student_repository.dart';
 import 'auth_provider.dart';
@@ -47,3 +48,5 @@ final staffInvitationsProvider = FutureProvider.autoDispose<List<InvitationModel
 final pendingJoinRequestsProvider = FutureProvider.autoDispose<List<JoinRequestModel>>(
   (ref) => ref.read(invitationRepositoryProvider).getPendingRequests(),
 );
+
+final courseApplicationRepositoryProvider = Provider((ref) => CourseApplicationRepository(ref.read(apiClientProvider)));

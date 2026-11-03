@@ -41,6 +41,8 @@ class ApiClient {
 
   Future<void> postVoid(String path, {Object? body}) => _send(() => _dio.post(path, data: body), (_) {});
 
+  Future<void> put(String path, {Object? body}) => _send(() => _dio.put(path, data: body), (_) {});
+
   Future<void> delete(String path) => _send(() => _dio.delete(path), (_) {});
 
   /// Yanıtın `data` alanını ayrıştırır; hata durumunda Türkçe mesajlı ApiException fırlatır.

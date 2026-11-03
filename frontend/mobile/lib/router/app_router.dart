@@ -8,6 +8,8 @@ import '../presentation/providers/auth_provider.dart';
 import '../presentation/providers/onboarding_provider.dart';
 import '../presentation/screens/attendance/attendance_screen.dart';
 import '../presentation/screens/auth/code_screen.dart';
+import '../presentation/screens/application/application_status_screen.dart';
+import '../presentation/screens/application/apply_screen.dart';
 import '../presentation/screens/auth/login_screen.dart';
 import '../presentation/screens/join/join_screen.dart';
 import '../presentation/screens/onboarding/onboarding_screen.dart';
@@ -46,8 +48,12 @@ String? authRedirect(AuthState auth, String location, {bool? onboardingSeen = tr
       if (!onboardingSeen) return location == '/welcome' ? null : '/welcome';
       return inLogin ? null : '/login';
     case AuthStatus.signedIn:
+      // Onay bekleyen/reddedilen kursun müdürü yalnızca başvuru durumunu görür
+      if (auth.session!.isApplicationOnly && auth.session!.role == 'tenant_admin') {
+        return location == '/application' ? null : '/application';
+      }
       if (blockedReason(auth) != null) return location == '/blocked' ? null : '/blocked';
-      if (inLogin || location == '/splash' || location == '/blocked' || location == '/welcome') return '/students';
+      if (inLogin || const {'/splash', '/blocked', '/welcome', '/application'}.contains(location)) return '/students';
       return null;
   }
 }
@@ -72,11 +78,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (_, _) => const LoginScreen(),
         routes: [
+          GoRoute(path: 'apply', builder: (_, _) => const ApplyScreen()),
           GoRoute(path: 'code', builder: (_, state) => state.extra is LoginTarget
                 ? CodeScreen(target: state.extra as LoginTarget)
                 : const LoginScreen()),
         ],
       ),
+      GoRoute(path: '/application', builder: (_, _) => const ApplicationStatusScreen()),
       GoRoute(path: '/katil/:code', builder: (_, state) => JoinScreen(code: state.pathParameters['code']!)),
       GoRoute(
         path: '/blocked',
