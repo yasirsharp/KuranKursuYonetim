@@ -26,6 +26,14 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Davet bağlantıları (https://hafiztakip.yasirsharp.com.tr/katil/KOD) uygulamada açılır.
+                 Doğrulama: sitedeki /.well-known/assetlinks.json (imza anahtarının parmak izi). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="hafiztakip.yasirsharp.com.tr" android:pathPrefix="/katil/"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

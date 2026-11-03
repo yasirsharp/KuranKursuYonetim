@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
@@ -17,7 +18,7 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Çıkış yapılsın mı?'),
-        content: const Text('Tekrar girmek için e-postanıza yeni kod gönderilir.'),
+        content: const Text('Tekrar girmek için telefonunuza veya e-postanıza yeni kod gönderilir.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Vazgeç')),
           TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Çıkış yap')),
@@ -52,6 +53,18 @@ class ProfileScreen extends ConsumerWidget {
               subtitle: Text(RoleLabels.labels[session?.role] ?? session?.role ?? ''),
             ),
           ),
+          if (session?.role == 'tenant_admin' || session?.role == 'head_teacher') ...[
+            const SizedBox(height: AppSpacing.md),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.group_add, color: AppColors.green),
+                title: const Text('Personel ve davetler', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text('Karekod veya WhatsApp ile hoca ekleyin'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/profile/staff'),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(

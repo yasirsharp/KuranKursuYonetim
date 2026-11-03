@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/date_utils.dart';
+import '../../data/models/invitation_model.dart';
 import '../../data/models/lesson_model.dart';
 import '../../data/models/student_model.dart';
+import '../../data/repositories/invitation_repository.dart';
 import '../../data/repositories/student_repository.dart';
 import 'auth_provider.dart';
 
@@ -33,4 +35,15 @@ final studentLessonsProvider = FutureProvider.autoDispose.family<List<LessonMode
 
 final studentAttendanceProvider = FutureProvider.autoDispose.family<List<AttendanceModel>, String>(
   (ref, id) => ref.read(studentRepositoryProvider).getRecentAttendance(id),
+);
+
+final invitationRepositoryProvider = Provider((ref) => InvitationRepository(ref.read(apiClientProvider)));
+
+/// Yönetici ekranı: geçerli davetler ve bekleyen katılım istekleri.
+final staffInvitationsProvider = FutureProvider.autoDispose<List<InvitationModel>>(
+  (ref) => ref.read(invitationRepositoryProvider).getActive(),
+);
+
+final pendingJoinRequestsProvider = FutureProvider.autoDispose<List<JoinRequestModel>>(
+  (ref) => ref.read(invitationRepositoryProvider).getPendingRequests(),
 );

@@ -6,9 +6,11 @@ import 'package:hafiz_takip/core/constants/labels.dart';
 import 'package:hafiz_takip/core/constants/quran.dart';
 import 'package:hafiz_takip/core/network/api_exception.dart';
 import 'package:hafiz_takip/core/utils/validators.dart';
+import 'package:hafiz_takip/data/models/invitation_model.dart';
 import 'package:hafiz_takip/data/models/session_model.dart';
 import 'package:hafiz_takip/data/models/student_model.dart';
 import 'package:hafiz_takip/presentation/providers/auth_provider.dart';
+import 'package:hafiz_takip/presentation/screens/staff/staff_screen.dart';
 import 'package:hafiz_takip/presentation/screens/students/quick_lesson_sheet.dart';
 import 'package:hafiz_takip/router/app_router.dart';
 
@@ -60,6 +62,13 @@ void main() {
     expect(isValidCode('12345a'), isFalse);
   });
 
+  test('davet kodu: tire/boşluk atılır, büyük harfe çevrilir; paylaşım mesajı bağlantıyı içerir', () {
+    expect(normalizeInvitationCode(' ab7k-2m9x '), 'AB7K2M9X');
+    final text = invitationShareText('assistant_teacher', 'https://site/katil/AB7K2M9X');
+    expect(text, contains('yardımcı hoca olarak'));
+    expect(text, endsWith('https://site/katil/AB7K2M9X'));
+  });
+
   test('cep numarası sunucunun beklediği 10 haneye indirilir', () {
     expect(normalizePhone('0532 111 22 33'), '5321112233');
     expect(normalizePhone('+90 532 111 22 33'), '5321112233');
@@ -70,6 +79,12 @@ void main() {
   });
 
   group('yönlendirme', () {
+    test('davet bağlantısı oturum, açılış ve tanıtımdan bağımsız açılır', () {
+      for (final auth in [const AuthState(AuthStatus.restoring), const AuthState(AuthStatus.signedOut), AuthState(AuthStatus.signedIn, session())]) {
+        expect(authRedirect(auth, '/katil/AB7K2M9X', onboardingSeen: false), isNull);
+      }
+    });
+
     test('oturum yoksa giriş ekranı, giriş ekranındayken yönlendirme yok', () {
       const auth = AuthState(AuthStatus.signedOut);
       expect(authRedirect(auth, '/students'), '/login');

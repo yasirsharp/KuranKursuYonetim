@@ -8,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/models/invitation_model.dart';
 import '../../../data/models/session_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_header.dart';
@@ -67,6 +68,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Bağlantı yerine kod paylaşıldıysa (ör. telefonda okunarak): …/katil/KOD ekranına gider.
+  Future<void> _enterInvitationCode() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Davet kodu'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(hintText: 'Ör. AB7K2M9X', helperText: 'Kurs yöneticinizin gönderdiği 8 karakter'),
+          onSubmitted: (v) => Navigator.pop(c, v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')),
+          TextButton(onPressed: () => Navigator.pop(c, controller.text), child: const Text('Devam')),
+        ],
+      ),
+    );
+    controller.dispose();
+    final normalized = normalizeInvitationCode(_extractCode(code ?? ''));
+    if (normalized.isNotEmpty && mounted) context.push('/katil/$normalized');
+  }
+
+  /// Bağlantının tamamı yapıştırıldıysa sondaki kodu alır.
+  static String _extractCode(String value) {
+    final match = RegExp(r'/katil/([A-Za-z0-9-]+)').firstMatch(value);
+    return match?.group(1) ?? value;
   }
 
   @override
@@ -129,6 +161,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 FilledButton(
                   onPressed: _sending ? null : _sendCode,
                   child: Text(_sending ? 'Gönderiliyor...' : 'Giriş kodu gönder'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextButton.icon(
+                  onPressed: _sending ? null : _enterInvitationCode,
+                  icon: const Icon(Icons.qr_code_2),
+                  label: const Text('Davet kodum var (yeni hoca)'),
                 ),
                 if (ApiConstants.showTestHints) ...[
                   const SizedBox(height: AppSpacing.lg),

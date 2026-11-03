@@ -4,6 +4,9 @@ class ApiConstants {
   /// Derlemede `--dart-define=API_BASE_URL=...` ile değiştirilebilir; varsayılan test sunucusunun API'si.
   static const baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://hafiztakip.api.yasirsharp.com.tr');
 
+  /// Web sitesi: davet bağlantıları {webBaseUrl}/katil/{kod}. Android bu bağlantıları uygulamada açar (App Links).
+  static const webBaseUrl = String.fromEnvironment('WEB_BASE_URL', defaultValue: 'https://hafiztakip.yasirsharp.com.tr');
+
   /// Test sunucusunda e-posta gönderilmez; kod sabittir. Canlı derlemede `--dart-define=SHOW_TEST_HINTS=false`.
   static const showTestHints = bool.fromEnvironment('SHOW_TEST_HINTS', defaultValue: true);
 

@@ -9,9 +9,11 @@ import '../presentation/providers/onboarding_provider.dart';
 import '../presentation/screens/attendance/attendance_screen.dart';
 import '../presentation/screens/auth/code_screen.dart';
 import '../presentation/screens/auth/login_screen.dart';
+import '../presentation/screens/join/join_screen.dart';
 import '../presentation/screens/onboarding/onboarding_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/shell/app_shell.dart';
+import '../presentation/screens/staff/staff_screen.dart';
 import '../presentation/screens/students/student_detail_screen.dart';
 import '../presentation/screens/students/students_screen.dart';
 
@@ -34,6 +36,8 @@ String? blockedReason(AuthState auth) {
 /// [onboardingSeen] null: tanıtımın görülüp görülmediği henüz okunmadı.
 String? authRedirect(AuthState auth, String location, {bool? onboardingSeen = true}) {
   final inLogin = location.startsWith('/login');
+  // Davet bağlantısı (…/katil/KOD) oturum ve tanıtımdan bağımsız açılır; açılışta gelen bağlantı kaybolmaz
+  if (location.startsWith('/katil/')) return null;
   switch (auth.status) {
     case AuthStatus.restoring:
       return location == '/splash' ? null : '/splash';
@@ -73,6 +77,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 : const LoginScreen()),
         ],
       ),
+      GoRoute(path: '/katil/:code', builder: (_, state) => JoinScreen(code: state.pathParameters['code']!)),
       GoRoute(
         path: '/blocked',
         builder: (_, _) => BlockedScreen(
@@ -96,7 +101,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(path: '/attendance', builder: (_, _) => const AttendanceScreen()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+            GoRoute(
+              path: '/profile',
+              builder: (_, _) => const ProfileScreen(),
+              routes: [GoRoute(path: 'staff', builder: (_, _) => const StaffScreen())],
+            ),
           ]),
         ],
       ),
