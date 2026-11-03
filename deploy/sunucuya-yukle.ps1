@@ -148,12 +148,12 @@ function Remove-FtpFile([string]$remotePath) {
 # Uygulama durduktan sonra da IIS dosyaları birkaç saniye kilitli tutabilir (550): artan beklemeyle tekrar denenir.
 function Publish-FtpFolder([string]$localDir, [string]$remoteDir, [string[]]$LastFiles = @()) {
     New-FtpDirectory $remoteDir
-    $dirs = Get-ChildItem $localDir -Recurse -Directory | Sort-Object { $_.FullName.Length }
+    $dirs = Get-ChildItem $localDir -Recurse -Directory -Force | Sort-Object { $_.FullName.Length }
     foreach ($d in $dirs) {
         New-FtpDirectory ($remoteDir + '/' + $d.FullName.Substring($localDir.Length + 1).Replace('\', '/'))
     }
 
-    $files = @(Get-ChildItem $localDir -Recurse -File | Sort-Object { $LastFiles -contains $_.Name })
+    $files = @(Get-ChildItem $localDir -Recurse -File -Force | Sort-Object { $LastFiles -contains $_.Name })
     $i = 0
     foreach ($f in $files) {
         $i++

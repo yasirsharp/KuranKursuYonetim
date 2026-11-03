@@ -29,8 +29,8 @@ function markTourSeen() {
   }
 }
 
-/** Tanıtımın kendiliğinden açılmayacağı sayfalar (indirme sayfası, platform paneli, kod doğrulama). */
-const SKIP_PATHS = [PATHS.mobileApp, PATHS.platform, PATHS.platformLogin, PATHS.verifyOtp];
+/** Tanıtımın kendiliğinden açılmayacağı sayfalar (indirme sayfası, platform paneli, kod doğrulama, davetle katılım). */
+const SKIP_PATHS = [PATHS.mobileApp, PATHS.platform, PATHS.platformLogin, PATHS.verifyOtp, PATHS.join];
 
 interface Slide {
   eyebrow: string;

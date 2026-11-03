@@ -15,6 +15,7 @@ export default function MorePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const isStaff = user?.role === 'tenant_admin' || user?.role === 'head_teacher' || user?.role === 'assistant_teacher';
+  const canInvite = user?.role === 'tenant_admin' || user?.role === 'head_teacher';
 
   const handleLogout = () => {
     logout();
@@ -32,6 +33,13 @@ export default function MorePage() {
       </div>
 
       <nav className="menu-list">
+        {canInvite && (
+          <button className="menu-item" onClick={() => navigate(PATHS.staff)}>
+            <Icon name="plus" size={20} color="var(--color-green)" />
+            Personel ve davetler
+            <span className="menu-item-hint">QR ile hoca ekle</span>
+          </button>
+        )}
         {isStaff && (
           <button className="menu-item" onClick={() => navigate(PATHS.settings)}>
             <Icon name="cal" size={20} color="var(--color-green)" />

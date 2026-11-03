@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "tr.com.yasirsharp.hafiz_takip",
+      "sha256_cert_fingerprints": [
+        "61:4F:AA:8E:E6:6C:66:0F:C4:80:9F:03:CB:09:0C:D8:E5:5D:86:53:00:7D:05:6D:36:23:17:E3:6A:3E:65:99"
+      ]
+    }
+  }
+]

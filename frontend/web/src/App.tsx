@@ -5,6 +5,7 @@ import OtpVerifyPage from './pages/auth/OtpVerifyPage';
 import CourseApplicationPage from './pages/auth/CourseApplicationPage';
 import ApplicationStatusPage from './pages/auth/ApplicationStatusPage';
 import MobileAppPage from './pages/auth/MobileAppPage';
+import JoinPage from './pages/auth/JoinPage';
 import WelcomeTour from './components/onboarding/WelcomeTour';
 import TeacherLayout from './layouts/TeacherLayout';
 import PlatformLayout from './layouts/PlatformLayout';
@@ -16,6 +17,7 @@ import StudentFormPage from './pages/teacher/StudentFormPage';
 import SettingsPage from './pages/teacher/SettingsPage';
 import CalendarPage from './pages/teacher/CalendarPage';
 import MorePage from './pages/teacher/MorePage';
+import StaffPage from './pages/teacher/StaffPage';
 import PlatformLoginPage from './pages/platform/PlatformLoginPage';
 import PlatformTenantsPage from './pages/platform/PlatformTenantsPage';
 
@@ -73,6 +75,8 @@ export default function App() {
 
           {/* Herkese açık: telefon uygulamasını indirme ve kurma */}
           <Route path={PATHS.mobileApp} element={<MobileAppPage />} />
+          {/* Herkese açık: davet bağlantısıyla personel olarak katılma */}
+          <Route path={`${PATHS.join}/:code`} element={<JoinPage />} />
 
           {/* Platform yöneticisi */}
           <Route path={PATHS.platformLogin} element={<PublicRoute><PlatformLoginPage /></PublicRoute>} />
@@ -107,6 +111,7 @@ export default function App() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="more" element={<MorePage />} />
+            <Route path="staff" element={<StaffPage />} />
           </Route>
 
           {/* 404 → Ana sayfaya yönlendir */}

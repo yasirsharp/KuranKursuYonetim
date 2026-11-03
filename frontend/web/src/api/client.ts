@@ -22,7 +22,7 @@ const apiClient = axios.create({
 });
 
 // Giriş/başvuru uçlarındaki 401 "kod hatalı" demektir; oturum düşürülmez, sayfa kendisi gösterir
-const ANONYMOUS_ENDPOINTS = ['/api/auth/', '/api/platform/auth/', '/api/course-applications/send-code'];
+const ANONYMOUS_ENDPOINTS = ['/api/auth/', '/api/platform/auth/', '/api/course-applications/send-code', '/api/join/'];
 const isAnonymousEndpoint = (url = '') =>
   ANONYMOUS_ENDPOINTS.some((p) => url.startsWith(p)) || url === '/api/course-applications';
 
